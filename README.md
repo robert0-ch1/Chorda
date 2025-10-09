@@ -1,3 +1,7 @@
 # Pluck-Designer
 
-Pluck Designer is a polyphonic implementation of the Karplus-Strong algorithm able to create plucked strings sounds through Physical Modelling synthesis techniques. By tweaking parameters of the plugin it is possible to achieve sounds from instruments such as keyboard, piano, guitar, bass, and more.
+Pluck Designer is a polyphonic synthesiser based on the implementation of the Karplus-Strong algorithm.
+
+This piece of software specialises in creating plucked string sounds through Physical Modelling synthesis. 
+
+By tweaking parameters of the plugin, sounds from instruments such as keyboard, piano, guitar, bass, and more can be easily achieved.
