@@ -4,4 +4,4 @@ Pluck Designer is a digital polyphonic synthesiser based on the implementation o
 
 The application specialises in creating plucked string sounds through Physical Modelling synthesis. 
 
-By tweaking parameters of the plugin, sounds from instruments such as keyboard, piano, guitar, bass, and more can be easily achieved.
+By tweaking parameters of the plugin, the user can obtain sounds from instruments such as keyboard, piano, guitar, bass.
