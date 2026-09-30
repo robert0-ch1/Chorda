@@ -8,8 +8,6 @@ real one can't: it can be bowed for seconds, held at any level for as long as
 the key is down, heard from a pickup you slide while it rings, and sculpted by
 a dampener that glides along it picking out harmonics.
 
-## Why
-
 Chorda started as Pluck Designer, a Karplus-Strong synth I built as a
 university project at Queen Mary University of London. The project ended
 before the instrument felt finished, so I came back to it: a new string
@@ -41,7 +39,7 @@ time. Clear that once in Terminal:
 xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Chorda.component ~/Library/Audio/Plug-Ins/VST3/Chorda.vst3 /Applications/Chorda.app
 ```
 
-## What the controls do
+## Controls
 
 - **Pick** (the hand): the point along the string where it is plucked. The
   excitation goes through a comb filter that removes every harmonic with a
