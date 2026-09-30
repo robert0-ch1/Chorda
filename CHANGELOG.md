@@ -55,7 +55,7 @@ All notable changes to Chorda are documented here. The format follows
 - The damper cut notes short, made them quieter, and at the middle of the
   string could run the octave on for ever. It is now a filter after the
   string instead of a loss inside it, with an automatic level make-up: it
-  picks out the partials with a node at the finger as before, but the
+  picks out the partials with a node at the blue dot as before, but the
   envelope is exactly what Attack, Decay, Sustain and Release say, and damped
   notes are as loud as undamped ones (within 1 dB across the damper).
 - Save was greyed out on factory presets. It now always works: on a user
@@ -138,12 +138,12 @@ First public release. A ground-up rework of the ECS7012 coursework plugin.
 - Envelope built into the string: Attack is the excitation length, Decay,
   Sustain and Release change the loop damping. Live display of the resulting
   string level over time.
-- Pick-position comb filter on the exciter; damper (finger) comb inside the
+- Pick-position comb filter on the exciter; dampener comb inside the
   loop. Pick and damper are markers you drag on the drawn string.
 - Sub oscillator an octave below that follows the string's level.
 - Velocity mapped to pluck length and brightness as well as level; mod wheel
   raises brightness; octave transposer; damper
-  pressure by vertical drag on the finger marker.
+  pressure by vertical drag on the blue dot.
 - Valve-style drive stage, 2x oversampled, on the output.
 - Voice modes: Mono and polyphony limits from 2 to 64.
 - Feedback compensation for the loop filter with an in-loop high-pass and a
