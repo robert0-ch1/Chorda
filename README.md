@@ -41,43 +41,27 @@ xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Chorda.compon
 
 ## Controls
 
-- **Pick** (the hand): the point along the string where it is plucked. The
-  excitation goes through a comb filter that removes every harmonic with a
-  node at that point (plucked in the middle, all the even ones), and the
-  string is read back through the same comb, like a pickup under the pick, so
-  moving it reshapes a note that is already ringing.
-- **Damp** (the blue dot): the dampener, a six-stage comb filter after the
-  string, tuned to the dot's position. It keeps the harmonics that have a
-  node under the dot and cuts the rest: in the middle the octave rings out,
-  at a third the twelfth. Its height sets how deep it cuts, and its level is
-  made up automatically, so it changes the colour of the note, never its
-  loudness or its envelope.
-- **Exciter**: the signal fed into the string when a note starts, crossfading
-  from a sine through a square to a noise burst. It is band-limited to what
-  the string can carry and level-matched across the whole knob.
-- **Brightness**: the cutoff of the low-pass inside the string's feedback
-  loop. Every round trip takes a little more treble away, which is why a
-  pluck starts bright and mellows. Below C3 it becomes a cascade, so low
-  strings lose their top end as fast as middle ones.
-- **Sub**: a sine exactly one octave below the string's real pitch, its level
-  following the string's own.
-- **A D S R**: there is no amplitude envelope; the envelope is the string.
-  Attack is how long the exciter feeds energy in (a few ms is a pluck, up to
-  2 s is a bow). Decay and Release are the times, in seconds, for the string
-  to fall by 60 dB with the key down and after it is let go, turned into the
-  loop's feedback for each note. Sustain is the level where the string stops
-  losing energy and holds.
-- **Damp LFO**: two bipolar sine LFOs, one sliding the blue dot along the
-  string, one varying how deep it cuts, from 0.05 to 20 Hz or synced to the
-  host tempo. The Target switch picks which one the knobs edit.
-- **Voices, Glide, Octave**: Mono, Legato (a new key slides the ringing string
-  to the new pitch instead of plucking again) or up to 64 voices; a glide in
-  pitch between notes; an octave shift of up to two either way.
-- **Width, Drive, Reverb, Gain**: a stereo ensemble of four modulated delays;
-  asymmetric valve-style saturation, 2x oversampled; a reverb send; the
-  output level, followed by a safety limiter at +6 dBFS.
+| Control | What it does |
+|---|---|
+| **Pick** (the hand) | Where the string is plucked. A comb filter, 1 − z<sup>−pN</sup>, on the pluck and on what you hear, like a pickup under the pick. |
+| **Damp** (the blue dot) | The dampener: a six-stage comb after the string that keeps the harmonics with a node under the dot. Height sets how deep it cuts; level is made up. |
+| **Exciter** | What goes into the string: sine, square or noise burst, crossfaded and level-matched. |
+| **Brightness** | Low-pass inside the loop: every round trip takes more treble away. |
+| **Sub** | A sine one octave down, following the string's level. |
+| **Attack** | How long the exciter feeds the string: ms for a pluck, up to 2 s for a bow. |
+| **Decay · Release** | Seconds to fall 60 dB with the key held, and after; sets the loop gain g. |
+| **Sustain** | The level where the string stops losing energy and holds. |
+| **Damp LFO** | Two sine LFOs on the dot's position and depth, free or tempo-synced. |
+| **Voices · Glide · Octave** | Mono, Legato or up to 64 voices; pitch glide; ±2 octaves. |
+| **Width · Drive · Reverb · Gain** | Stereo ensemble; 2x oversampled valve drive; reverb send; output level into a +6 dBFS limiter. |
 
 Fifteen presets, from basses to guitars, keys and pads, are there to start from.
+
+## Inside
+
+![Signal flow of one voice](docs/signal-flow.svg)
+
+![Architecture](docs/architecture.svg)
 
 ## Build it yourself
 
