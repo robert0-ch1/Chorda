@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="GXVE2j" name="Chorda" projectType="audioplug" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" version="1.0.0"
+              companyName="Roberto Chiurazzi" bundleIdentifier="com.robertochiurazzi.chorda"
+              pluginFormats="buildAU,buildStandalone,buildVST3" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn"
+              pluginManufacturer="Roberto Chiurazzi" pluginManufacturerCode="Rchz"
+              pluginCode="Chrd" pluginName="Chorda" pluginDesc="Karplus-Strong string synthesiser"
+              pluginVST3Category="Instrument,Synth" cppLanguageStandard="17"
+              headerPath="../../Source">
+  <MAINGROUP id="y7K82v" name="Chorda">
+    <GROUP id="{A1B2C3D4-0005-0000-0000-000000000005}" name="Resources">
+      <FILE id="pdFntB" name="Bagnard.otf" compile="0" resource="1" file="Resources/Bagnard.otf"/>
+      <FILE id="pdHndP" name="hand.png" compile="0" resource="1" file="Resources/hand.png"/>
+      <FILE id="pdHnd1" name="hand_pluck_1.png" compile="0" resource="1" file="Resources/hand_pluck_1.png"/>
+      <FILE id="pdHnd2" name="hand_pluck_2.png" compile="0" resource="1" file="Resources/hand_pluck_2.png"/>
+      <FILE id="pdHnd3" name="hand_pluck_3.png" compile="0" resource="1" file="Resources/hand_pluck_3.png"/>
+    </GROUP>
+    <GROUP id="{A1B2C3D4-0001-0000-0000-000000000001}" name="Source">
+      <FILE id="pdParm" name="Parameters.h" compile="0" resource="0" file="Source/Parameters.h"/>
+      <FILE id="pdProH" name="PluginProcessor.h" compile="0" resource="0"
+            file="Source/PluginProcessor.h"/>
+      <FILE id="pdProC" name="PluginProcessor.cpp" compile="1" resource="0"
+            file="Source/PluginProcessor.cpp"/>
+      <FILE id="pdEdiH" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
+      <FILE id="pdEdiC" name="PluginEditor.cpp" compile="1" resource="0"
+            file="Source/PluginEditor.cpp"/>
+      <GROUP id="{A1B2C3D4-0002-0000-0000-000000000002}" name="DSP">
+        <FILE id="pdSndH" name="KarplusSound.h" compile="0" resource="0" file="Source/DSP/KarplusSound.h"/>
+        <FILE id="pdVoiH" name="KarplusVoice.h" compile="0" resource="0" file="Source/DSP/KarplusVoice.h"/>
+        <FILE id="pdVoiC" name="KarplusVoice.cpp" compile="1" resource="0"
+              file="Source/DSP/KarplusVoice.cpp"/>
+        <FILE id="pdSynH" name="PluckSynth.h" compile="0" resource="0" file="Source/DSP/PluckSynth.h"/>
+        <FILE id="pdSynC" name="PluckSynth.cpp" compile="1" resource="0" file="Source/DSP/PluckSynth.cpp"/>
+        <FILE id="pdSwdH" name="StereoWidener.h" compile="0" resource="0" file="Source/DSP/StereoWidener.h"/>
+      </GROUP>
+      <GROUP id="{A1B2C3D4-0003-0000-0000-000000000003}" name="Presets">
+        <FILE id="pdFacH" name="FactoryPresets.h" compile="0" resource="0"
+              file="Source/Presets/FactoryPresets.h"/>
+        <FILE id="pdFacC" name="FactoryPresets.cpp" compile="1" resource="0"
+              file="Source/Presets/FactoryPresets.cpp"/>
+        <FILE id="pdPreH" name="PresetManager.h" compile="0" resource="0" file="Source/Presets/PresetManager.h"/>
+        <FILE id="pdPreC" name="PresetManager.cpp" compile="1" resource="0"
+              file="Source/Presets/PresetManager.cpp"/>
+      </GROUP>
+      <GROUP id="{A1B2C3D4-0004-0000-0000-000000000004}" name="UI">
+        <FILE id="pdLnfH" name="PluckLookAndFeel.h" compile="0" resource="0"
+              file="Source/UI/PluckLookAndFeel.h"/>
+        <FILE id="pdLnfC" name="PluckLookAndFeel.cpp" compile="1" resource="0"
+              file="Source/UI/PluckLookAndFeel.cpp"/>
+        <FILE id="pdKnbH" name="ParameterKnob.h" compile="0" resource="0" file="Source/UI/ParameterKnob.h"/>
+        <FILE id="pdStvH" name="StringView.h" compile="0" resource="0" file="Source/UI/StringView.h"/>
+        <FILE id="pdStvC" name="StringView.cpp" compile="1" resource="0" file="Source/UI/StringView.cpp"/>
+        <FILE id="pdPbxH" name="ParameterBox.h" compile="0" resource="0" file="Source/UI/ParameterBox.h"/>
+        <FILE id="pdSwbH" name="SwitchButton.h" compile="0" resource="0" file="Source/UI/SwitchButton.h"/>
+        <FILE id="pdCrdH" name="SectionCard.h" compile="0" resource="0" file="Source/UI/SectionCard.h"/>
+        <FILE id="pdIcbH" name="IconButton.h" compile="0" resource="0" file="Source/UI/IconButton.h"/>
+        <FILE id="pdPbrH" name="PresetBar.h" compile="0" resource="0" file="Source/UI/PresetBar.h"/>
+        <FILE id="pdPbrC" name="PresetBar.cpp" compile="1" resource="0" file="Source/UI/PresetBar.cpp"/>
+      </GROUP>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"
+               JUCE_WEB_BROWSER="0" JUCE_USE_CURL="0" JUCE_MODAL_LOOPS_PERMITTED="0"/>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Chorda"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Chorda"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../../../Applications/JUCE/modules"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+    <VS2022 targetFolder="Builds/VisualStudio2022">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Chorda"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Chorda"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../../../JUCE/modules"/>
+      </MODULEPATHS>
+    </VS2022>
+  </EXPORTFORMATS>
+</JUCERPROJECT>
