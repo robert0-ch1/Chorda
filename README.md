@@ -8,6 +8,12 @@ is plucked, rest a finger on it, let that finger drift along it, and the same
 string becomes a sub bass, a nylon guitar, a koto, an electric piano or a slow
 glassy pad.
 
+Chorda started as Pluck Designer, a Karplus-Strong synth I built as a
+university project at Queen Mary University of London. The project ended
+before the instrument felt finished, so I came back to it: a new string
+engine, a dampener, an envelope that lives inside the string
+itself, presets and a new interface.
+
 AU · VST3 · Standalone, for macOS, Windows and Linux.
 
 ![Chorda](docs/screenshot.png)
@@ -57,15 +63,13 @@ xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Chorda.compon
 
 Fifteen presets, from basses to guitars, keys and pads, are there to start from.
 
-## The story
+## Why
 
 Chorda started as Pluck Designer, a Karplus-Strong synth I built as a
 university project at Queen Mary University of London. The project ended
 before the instrument felt finished, so I came back to it: a new string
-engine, a finger on the string, an envelope that lives inside the string
+engine, a dampener, an envelope that lives inside the string
 itself, presets and a new interface.
-
-A big shout-out to Queen Mary University of London and to Professor Josh Reiss.
 
 ## Build it yourself
 
