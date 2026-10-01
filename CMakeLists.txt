@@ -61,6 +61,10 @@ set(CHORDA_SOURCES
     Source/DSP/KarplusSound.h
     Source/DSP/KarplusVoice.h
     Source/DSP/KarplusVoice.cpp
+    Source/DSP/KarplusExciter.cpp
+    Source/DSP/KarplusDamper.cpp
+    Source/DSP/KarplusTuning.cpp
+    Source/DSP/VoiceConstants.h
     Source/DSP/PluckSynth.h
     Source/DSP/PluckSynth.cpp
     Source/DSP/StereoWidener.h

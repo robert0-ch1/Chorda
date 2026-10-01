@@ -29,6 +29,13 @@
         <FILE id="pdVoiH" name="KarplusVoice.h" compile="0" resource="0" file="Source/DSP/KarplusVoice.h"/>
         <FILE id="pdVoiC" name="KarplusVoice.cpp" compile="1" resource="0"
               file="Source/DSP/KarplusVoice.cpp"/>
+        <FILE id="pdVoiX" name="KarplusExciter.cpp" compile="1" resource="0"
+              file="Source/DSP/KarplusExciter.cpp"/>
+        <FILE id="pdVoiD" name="KarplusDamper.cpp" compile="1" resource="0"
+              file="Source/DSP/KarplusDamper.cpp"/>
+        <FILE id="pdVoiT" name="KarplusTuning.cpp" compile="1" resource="0"
+              file="Source/DSP/KarplusTuning.cpp"/>
+        <FILE id="pdVoiK" name="VoiceConstants.h" compile="0" resource="0" file="Source/DSP/VoiceConstants.h"/>
         <FILE id="pdSynH" name="PluckSynth.h" compile="0" resource="0" file="Source/DSP/PluckSynth.h"/>
         <FILE id="pdSynC" name="PluckSynth.cpp" compile="1" resource="0" file="Source/DSP/PluckSynth.cpp"/>
         <FILE id="pdSwdH" name="StereoWidener.h" compile="0" resource="0" file="Source/DSP/StereoWidener.h"/>
