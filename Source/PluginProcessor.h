@@ -43,6 +43,7 @@ public:
     void releaseResources() override;
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    using juce::AudioProcessor::processBlock;   // the double-precision one stays the base class's
 
     //==============================================================================
     juce::AudioProcessorEditor* createEditor() override;

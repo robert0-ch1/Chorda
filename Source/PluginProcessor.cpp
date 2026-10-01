@@ -183,8 +183,8 @@ void ChordaAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 
     // The LFO can follow the host's tempo and bar, so the transport is read first.
     juce::Optional<juce::AudioPlayHead::PositionInfo> position;
-    if (auto* playHead = getPlayHead())
-        position = playHead->getPosition();
+    if (auto* host = getPlayHead())
+        position = host->getPosition();
 
     if (position)
         if (const auto bpm = position->getBpm())
