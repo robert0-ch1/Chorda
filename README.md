@@ -69,5 +69,7 @@ tests with `ctest --test-dir build -C Release`.
 
 ## License
 
-[GPL v3](LICENSE). Built with [JUCE](https://juce.com). The title typeface is
-Bagnard by Sebastien Sanfilippo, under the SIL Open Font License.
+Chorda is released under the [GNU General Public License v3](LICENSE). It is
+built with [JUCE](https://juce.com), used under its open-source licence. The
+title typeface is Bagnard by Sebastien Sanfilippo, under the SIL Open Font
+License.
