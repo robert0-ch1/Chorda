@@ -24,18 +24,18 @@
     <path d="M500 152 V 128 H 700 V 104" marker-end="url(#a)"/>
   </g>
   <g text-anchor="middle">
-    <text x="130" y="70" font-weight="bold">DAW / host</text>
+    <text x="130" y="70">DAW / host</text>
     <text x="130" y="90" font-size="12" font-style="italic">MIDI in, audio out</text>
     <text x="269" y="66" font-size="12" font-style="italic">MIDI</text>
-    <text x="430" y="70" font-weight="bold">Voices</text>
+    <text x="430" y="70">Voices</text>
     <text x="430" y="90" font-size="12" font-style="italic">up to 64 strings (Fig. 1)</text>
-    <text x="770" y="70" font-weight="bold">Output</text>
-    <text x="770" y="90" font-size="12" font-style="italic">drive · width · reverb · limiter</text>
+    <text x="770" y="70">Output</text>
+    <text x="770" y="90" font-size="12" font-style="italic">drive, width, reverb, limiter</text>
     <text x="450" y="16" font-size="12" font-style="italic">audio</text>
-    <text x="130" y="182" font-weight="bold">Editor</text>
-    <text x="430" y="174" font-weight="bold">Parameters</text>
+    <text x="130" y="182">Editor</text>
+    <text x="430" y="174">Parameters</text>
     <text x="430" y="192" font-size="12" font-style="italic">knobs, pick, blue dot, LFOs</text>
-    <text x="770" y="182" font-weight="bold">Presets</text>
+    <text x="770" y="182">Presets</text>
   </g>
-  <text x="40" y="236" font-size="14"><tspan font-weight="bold">Fig. 2.</tspan> The plugin. The host plays the voices; the editor and the presets set the parameters they read.</text>
+  <text x="40" y="236" font-size="14"><tspan>Fig. 2.</tspan> The plugin. The host plays the voices; the editor and the presets set the parameters they read.</text>
 </svg>

@@ -1,13 +1,13 @@
 # Chorda
 
-**Strings, at hand.**
+Strings, at hand.
 
 One simulated string, many instruments: from deep basses to bright harps,
 from quick plucks to bowed swells.
 
 It started as Pluck Designer, a university project, and is finished here.
 
-AU · VST3 · Standalone, for macOS, Windows and Linux.
+AU, VST3 and standalone, for macOS, Windows and Linux.
 
 ![Chorda](docs/screenshot.png)
 
@@ -36,17 +36,17 @@ xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Chorda.compon
 
 | Control | What it does |
 |---|---|
-| **Pick** (the hand) | Where the string is plucked. A comb filter, 1 − z<sup>−pN</sup>, on the pluck and on what you hear, like a pickup under the pick. |
-| **Damp** (the blue dot) | The dampener: a six-stage comb after the string that keeps the harmonics with a node under the dot. Height sets how deep it cuts; level is made up. |
-| **Exciter** | What goes into the string: sine, square or noise burst, crossfaded and level-matched. |
-| **Brightness** | Low-pass inside the loop: every round trip takes more treble away. |
-| **Sub** | A sine one octave down, following the string's level. |
-| **Attack** | How long the exciter feeds the string: ms for a pluck, up to 2 s for a bow. |
-| **Decay · Release** | Seconds to fall 60 dB with the key held, and after; sets the loop gain g. |
-| **Sustain** | The level where the string stops losing energy and holds. |
-| **Damp LFO** | Two sine LFOs on the dot's position and depth, free or tempo-synced. |
-| **Voices · Glide · Octave** | Mono, Legato or up to 64 voices; pitch glide; ±2 octaves. |
-| **Width · Drive · Reverb · Gain** | Stereo ensemble; 2x oversampled valve drive; reverb send. |
+| Pick (the hand) | Where the string is plucked. A comb filter, 1 − z<sup>−pN</sup>, on the pluck and on what you hear, like a pickup under the pick. |
+| Damp (the blue dot) | The dampener: a six-stage comb after the string that keeps the harmonics with a node under the dot. Height sets how deep it cuts; level is made up. |
+| Exciter | What goes into the string: sine, square or noise burst, crossfaded and level-matched. |
+| Brightness | Low-pass inside the loop: every round trip takes more treble away. |
+| Sub | A sine one octave down, following the string's level. |
+| Attack | How long the exciter feeds the string: ms for a pluck, up to 2 s for a bow. |
+| Decay, Release | Seconds to fall 60 dB with the key held, and after; sets the loop gain g. |
+| Sustain | The level where the string stops losing energy and holds. |
+| Damp LFO | Two sine LFOs on the dot's position and depth, free or tempo-synced. |
+| Voices, Glide, Octave | Mono, Legato or up to 64 voices; pitch glide; ±2 octaves. |
+| Width, Drive, Reverb, Gain | Stereo ensemble; 2x oversampled valve drive; reverb send. |
 
 Fifteen presets, from basses to guitars, keys and pads, are there to start from.
 
