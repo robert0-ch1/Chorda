@@ -82,13 +82,20 @@ public:
     void getIdealPopupMenuItemSize (const juce::String& text, bool isSeparator, int standardMenuItemHeight,
                                     int& idealWidth, int& idealHeight) override;
 
+    void drawAlertBox (juce::Graphics&, juce::AlertWindow&, const juce::Rectangle<int>& textArea, juce::TextLayout&) override;
+    int  getAlertWindowButtonHeight() override;
+    void fillTextEditorBackground (juce::Graphics&, int width, int height, juce::TextEditor&) override;
+    void drawTextEditorOutline (juce::Graphics&, int width, int height, juce::TextEditor&) override;
+
     juce::Font getAlertWindowTitleFont() override;
     juce::Font getAlertWindowMessageFont() override;
     juce::Font getAlertWindowFont() override;
 
-    /** TextButton property keys: hairline border, and dark-header hover style. */
+    /** TextButton property keys: hairline border, dark-header hover style, and
+        the filled ink button used for a dialog's main action. */
     static constexpr auto borderedProperty = "bordered";
     static constexpr auto darkProperty     = "dark";
+    static constexpr auto primaryProperty  = "primary";
 };
 
 } // namespace pluck::ui

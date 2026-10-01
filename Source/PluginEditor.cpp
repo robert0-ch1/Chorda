@@ -273,7 +273,6 @@ ChordaAudioProcessorEditor::ChordaAudioProcessorEditor (ChordaAudioProcessor& p)
     // Add the view before setting the look-and-feel: JUCE only notifies existing children.
     addAndMakeVisible (mainView);
     setLookAndFeel (&lookAndFeel);
-    juce::LookAndFeel::setDefaultLookAndFeel (&lookAndFeel);
 
     setResizable (true, true);
     setResizeLimits (MainView::width * 3 / 5, MainView::height * 3 / 5,
@@ -285,7 +284,6 @@ ChordaAudioProcessorEditor::ChordaAudioProcessorEditor (ChordaAudioProcessor& p)
 
 ChordaAudioProcessorEditor::~ChordaAudioProcessorEditor()
 {
-    juce::LookAndFeel::setDefaultLookAndFeel (nullptr);
     setLookAndFeel (nullptr);
 }
 

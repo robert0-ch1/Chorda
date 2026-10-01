@@ -127,6 +127,7 @@ void PresetBar::showPresetList()
             menu.addItem (i + 1, names[i], true, i == current);
     }
 
+    menu.setLookAndFeel (&getLookAndFeel());
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (nameButton).withMinimumWidth (nameButton.getWidth()),
                         [this] (int id)
                         {
@@ -204,15 +205,33 @@ void PresetBar::deleteClicked()
 //==============================================================================
 // Dialogs are asynchronous: plugins must not run modal loops.
 
+juce::AlertWindow* PresetBar::makeDialog (const juce::String& title, const juce::String& message)
+{
+    // The look-and-feel is set on each window rather than relied on as the
+    // global default, which another instance's editor may reset.
+    auto* window = new juce::AlertWindow (title, message, juce::MessageBoxIconType::NoIcon, this);
+    window->setLookAndFeel (&getLookAndFeel());
+    return window;
+}
+
+void PresetBar::addDialogButtons (juce::AlertWindow& window, const juce::String& okText, bool withCancel)
+{
+    window.addButton (okText, 1, juce::KeyPress (juce::KeyPress::returnKey));
+    if (withCancel)
+        window.addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+    window.getButton (0)->getProperties().set (PluckLookAndFeel::primaryProperty, true);
+    if (withCancel)
+        window.getButton (1)->getProperties().set (PluckLookAndFeel::borderedProperty, true);
+}
+
 void PresetBar::askForName (const juce::String& initialName, std::function<void (juce::String)> onAccept)
 {
-    auto* window = new juce::AlertWindow ("Save preset", "Preset name:", juce::MessageBoxIconType::NoIcon, this);
+    auto* window = makeDialog ("Save preset", "Name");
     window->addTextEditor ("name", initialName, {});
-    window->addButton ("Save",   1, juce::KeyPress (juce::KeyPress::returnKey));
-    window->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    addDialogButtons (*window, "Save", true);
 
     juce::Component::SafePointer<juce::AlertWindow> safeWindow (window);
-
     window->enterModalState (true, juce::ModalCallbackFunction::create ([safeWindow, onAccept] (int result)
     {
         if (result == 1 && safeWindow != nullptr)
@@ -223,17 +242,20 @@ void PresetBar::askForName (const juce::String& initialName, std::function<void 
 void PresetBar::confirm (const juce::String& title, const juce::String& message,
                          const juce::String& okText, std::function<void()> onConfirm)
 {
-    juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, title, message, okText, "Cancel", this,
-                                        juce::ModalCallbackFunction::create ([onConfirm] (int result)
-                                        {
-                                            if (result == 1)
-                                                onConfirm();
-                                        }));
+    auto* window = makeDialog (title, message);
+    addDialogButtons (*window, okText, true);
+    window->enterModalState (true, juce::ModalCallbackFunction::create ([onConfirm] (int result)
+    {
+        if (result == 1)
+            onConfirm();
+    }), true);
 }
 
 void PresetBar::showError (const juce::String& message)
 {
-    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Presets", message, "OK", this);
+    auto* window = makeDialog ("Presets", message);
+    addDialogButtons (*window, "OK", false);
+    window->enterModalState (true, nullptr, true);
 }
 
 } // namespace pluck::ui

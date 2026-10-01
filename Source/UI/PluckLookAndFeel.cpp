@@ -186,7 +186,12 @@ void PluckLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& bu
     const auto bounds = button.getLocalBounds().toFloat().reduced (0.5f);
     const bool hot = (shouldDrawButtonAsHighlighted || shouldDrawButtonAsDown) && button.isEnabled();
 
-    if (bordered)
+    if (button.getProperties()[primaryProperty])
+    {
+        g.setColour (shouldDrawButtonAsDown ? colours::headerHover : (hot ? colours::headerField : colours::ink));
+        g.fillRoundedRectangle (bounds, radius);
+    }
+    else if (bordered)
     {
         g.setColour (shouldDrawButtonAsDown ? colours::fieldHover : (hot ? colours::field : colours::white));
         g.fillRoundedRectangle (bounds, radius);
@@ -205,7 +210,9 @@ void PluckLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& bu
 void PluckLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& button, bool, bool)
 {
     g.setFont (getTextButtonFont (button, button.getHeight()));
-    g.setColour (button.isEnabled() ? button.findColour (juce::TextButton::textColourOffId) : colours::mid);
+    const bool primary = button.getProperties()[primaryProperty];
+    g.setColour (! button.isEnabled() ? colours::mid
+                                      : primary ? colours::white : button.findColour (juce::TextButton::textColourOffId));
     g.drawText (button.getButtonText(), button.getLocalBounds(), juce::Justification::centred);
 }
 
@@ -265,6 +272,40 @@ void PluckLookAndFeel::getIdealPopupMenuItemSize (const juce::String& text, bool
 }
 
 //==============================================================================
+// Dialogs: a white card with a hairline edge, the title in the display face.
+
+void PluckLookAndFeel::drawAlertBox (juce::Graphics& g, juce::AlertWindow& window,
+                                     const juce::Rectangle<int>& textArea, juce::TextLayout& layout)
+{
+    const auto bounds = window.getLocalBounds().toFloat();
+    g.fillAll (colours::white);
+    g.setColour (colours::hairline);
+    g.drawRect (bounds, 1.0f);
+
+    layout.draw (g, textArea.toFloat());
+}
+
+int PluckLookAndFeel::getAlertWindowButtonHeight()
+{
+    return 30;
+}
+
+void PluckLookAndFeel::fillTextEditorBackground (juce::Graphics& g, int width, int height, juce::TextEditor& editor)
+{
+    g.setColour (editor.findColour (juce::TextEditor::backgroundColourId));
+    g.fillRoundedRectangle (juce::Rectangle<int> (width, height).toFloat(), radius);
+}
+
+void PluckLookAndFeel::drawTextEditorOutline (juce::Graphics& g, int width, int height, juce::TextEditor& editor)
+{
+    if (! editor.isEnabled())
+        return;
+
+    const bool focused = editor.hasKeyboardFocus (true) && ! editor.isReadOnly();
+    g.setColour (focused ? colours::ink : colours::hairline);
+    g.drawRoundedRectangle (juce::Rectangle<int> (width, height).toFloat().reduced (0.5f), radius, 1.0f);
+}
+
 juce::Font PluckLookAndFeel::getAlertWindowTitleFont()   { return fonts::title(); }
 juce::Font PluckLookAndFeel::getAlertWindowMessageFont() { return fonts::name(); }
 juce::Font PluckLookAndFeel::getAlertWindowFont()        { return fonts::name(); }

@@ -37,6 +37,8 @@ private:
     void saveAsClicked();
     void deleteClicked();
 
+    juce::AlertWindow* makeDialog (const juce::String& title, const juce::String& message);
+    static void addDialogButtons (juce::AlertWindow&, const juce::String& okText, bool withCancel);
     void askForName (const juce::String& initialName, std::function<void (juce::String)> onAccept);
     void confirm (const juce::String& title, const juce::String& message,
                   const juce::String& okText, std::function<void()> onConfirm);
