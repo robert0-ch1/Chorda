@@ -9,6 +9,7 @@ Built on Karplus-Strong synthesis, Chorda extends the algorithm with accurate tu
 Explore what it can do with 15 built-in presets.
 
 AU, VST3 and standalone, for macOS, Windows and Linux.
+
 ![Chorda](docs/screenshot.png)
 
 ## Download
