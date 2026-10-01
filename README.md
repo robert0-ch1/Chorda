@@ -2,13 +2,13 @@
 
 Strings, at hand.
 
-One simulated string, many instruments: from deep basses to bright harps,
-from quick plucks to bowed swells.
+Chorda lets you shape a simulated string into many instruments: from deep basses to bright harps, from quick plucks to bowed swells.
 
-15 built in presets,
+Built on Karplus-Strong synthesis, Chorda extends the algorithm with accurate tuning at every pitch, full envelope control, a movable pluck point and a harmonic dampener driven by two LFOs, all behind a few intuitive controls.
+
+Explore what it can do with 15 built-in presets.
 
 AU, VST3 and standalone, for macOS, Windows and Linux.
-
 ![Chorda](docs/screenshot.png)
 
 ## Download
