@@ -24,8 +24,6 @@ and copy the plugins into place:
 | Windows | | `Chorda.vst3` to `C:\Program Files\Common Files\VST3` | run `Chorda.exe` |
 | Linux   | | `Chorda.vst3` to `~/.vst3` | run `./Chorda` |
 
-Then rescan plugins in your DAW.
-
 On macOS the builds are not signed yet, so macOS will block them the first
 time. Clear that once in Terminal:
 
@@ -37,8 +35,8 @@ xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Chorda.compon
 
 | Control | What it does |
 |---|---|
-| Pick (the hand) | Where the string is plucked. A comb filter, 1 − z<sup>−pN</sup>, on the pluck and on what you hear, like a pickup under the pick. |
-| Damp (the blue dot) | The dampener: a six-stage comb after the string that keeps the harmonics with a node under the dot. Height sets how deep it cuts; level is made up. |
+| Pick | Where the string is plucked. A comb filter, 1 − z<sup>−pN</sup>, on the pluck and on what you hear, like a pickup under the pick. |
+| Damp | The dampener: a six-stage comb after the string that keeps the harmonics with a node under the dot. |
 | Exciter | What goes into the string: sine, square or noise burst, crossfaded and level-matched. |
 | Brightness | Low-pass inside the loop: every round trip takes more treble away. |
 | Sub | A sine one octave down, following the string's level. |
@@ -51,7 +49,7 @@ xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Chorda.compon
 
 Fifteen presets, from basses to guitars, keys and pads, are there to start from.
 
-## Inside
+## System Diagram
 
 ![Signal flow of one voice](docs/signal-flow.svg)
 
