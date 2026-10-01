@@ -433,7 +433,7 @@ void testBendIsClean (TestReport& report)
     const auto audio = render (processor, events, seconds (3.0));
     const auto share = highShare (audio);
     report.check (share < -65.0, "a held sine bent back and forth gains no top end",
-                  juce::String (share, 1) + " dB of its energy above 4 kHz (it was -45 before the fix)");
+                  juce::String (share, 1) + " dB of its energy above 4 kHz");
 }
 
 /** Moving the pick reshapes a ringing note without a click; a damper at zero pressure has no effect. */
