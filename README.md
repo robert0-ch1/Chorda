@@ -53,15 +53,13 @@ xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Chorda.compon
 | **Sustain** | The level where the string stops losing energy and holds. |
 | **Damp LFO** | Two sine LFOs on the dot's position and depth, free or tempo-synced. |
 | **Voices · Glide · Octave** | Mono, Legato or up to 64 voices; pitch glide; ±2 octaves. |
-| **Width · Drive · Reverb · Gain** | Stereo ensemble; 2x oversampled valve drive; reverb send; output level into a +6 dBFS limiter. |
+| **Width · Drive · Reverb · Gain** | Stereo ensemble; 2x oversampled valve drive; reverb send. |
 
 Fifteen presets, from basses to guitars, keys and pads, are there to start from.
 
 ## Inside
 
 ![Signal flow of one voice](docs/signal-flow.svg)
-
-![Architecture](docs/architecture.svg)
 
 ## Build it yourself
 
