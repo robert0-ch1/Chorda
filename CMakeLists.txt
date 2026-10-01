@@ -88,27 +88,16 @@ set(CHORDA_COMMON_DEFINITIONS
     JUCE_MODAL_LOOPS_PERMITTED=0)
 
 # ------------------------------------------------------------------------------
-# Embedded assets: the title typeface (Bagnard, SIL Open Font License) and,
-# if present, a hand icon for the pick marker. All other text uses the
-# system UI font (SF Pro on macOS, Segoe UI on Windows). Drop one at
-# Resources/hand.svg (or hand.png) and it replaces the hand drawn in code.
+# Embedded assets: the title typeface (Bagnard, SIL Open Font License) and
+# the three frames of the plucking hand. All other text uses the system UI
+# font (SF Pro on macOS, Segoe UI on Windows).
 # ------------------------------------------------------------------------------
-set(CHORDA_HAND_ICON "")
-foreach(candidate Resources/hand.svg Resources/hand.png)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${candidate}")
-        set(CHORDA_HAND_ICON "${candidate}")
-        break()
-    endif()
-endforeach()
-
-# The pick hand's plucking animation: three frames, played at each note-on.
 juce_add_binary_data(PluckAssets
     SOURCES
         Resources/Bagnard.otf
         Resources/hand_pluck_1.png
         Resources/hand_pluck_2.png
-        Resources/hand_pluck_3.png
-        ${CHORDA_HAND_ICON})
+        Resources/hand_pluck_3.png)
 set_target_properties(PluckAssets PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # ------------------------------------------------------------------------------

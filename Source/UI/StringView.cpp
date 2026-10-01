@@ -41,13 +41,10 @@ namespace
     const juce::Colour damperColour = colours::damper;
 }
 
-/** A hand icon embedded from Resources/: a bitmap cropped to its visible
-    pixels, with the index finger's position measured, or a vector drawable. */
+/** The plucking hand: its three frames, cropped alike, and where its fingertip is. */
 struct StringView::HandIcon
 {
-    juce::Image image;
-    std::array<juce::Image, pluckFrames> frames;   ///< the plucking animation, frame 0 also the hand at rest
-    std::unique_ptr<juce::Drawable> vector;
+    std::array<juce::Image, pluckFrames> frames;   ///< frame 0 is also the hand at rest
     float aspect  = handAspect;   ///< width over height
     float fingerX = 0.38f;        ///< the fingertip's position across the width, 0..1
 };
@@ -312,7 +309,7 @@ namespace
 
 const StringView::HandIcon* StringView::handIcon()
 {
-    // Resolved once. Absent, the hand is drawn in code.
+    // Loaded once.
     static const std::unique_ptr<HandIcon> icon = []() -> std::unique_ptr<HandIcon>
     {
         int size = 0;
@@ -405,66 +402,10 @@ const StringView::HandIcon* StringView::handIcon()
                         result->frames[(size_t) f] = cut.rescaled (targetWidth, targetHeight, juce::Graphics::highResamplingQuality);
                     }
 
-                    result->image   = result->frames[0];
                     result->aspect  = (float) bounds.getWidth() / (float) bounds.getHeight();
                     result->fingerX = fingerCount > 0 ? (fingerSum / (float) fingerCount - (float) bounds.getX()) / (float) bounds.getWidth() : 0.38f;
                     return result;
                 }
-            }
-        }
-
-        if (const auto* data = BinaryData::getNamedResource ("hand_png", size))
-        {
-            auto image = juce::ImageFileFormat::loadFrom (data, (size_t) size);
-            if (! image.isValid())
-                return nullptr;
-
-            // Crop to the visible pixels and find the fingertip: the centre of
-            // the topmost few opaque rows.
-            juce::Rectangle<int> bounds;
-            float fingerSum = 0.0f;
-            int   fingerCount = 0, topRow = -1;
-            const juce::Image::BitmapData pixels (image, juce::Image::BitmapData::readOnly);
-
-            for (int y = 0; y < image.getHeight(); ++y)
-                for (int x = 0; x < image.getWidth(); ++x)
-                    if (pixels.getPixelColour (x, y).getAlpha() > 40)
-                    {
-                        bounds = bounds.isEmpty() ? juce::Rectangle<int> (x, y, 1, 1) : bounds.getUnion ({ x, y, 1, 1 });
-                        if (topRow < 0) topRow = y;
-                        if (y < topRow + 4) { fingerSum += (float) x; ++fingerCount; }
-                    }
-
-            if (bounds.isEmpty())
-                return nullptr;
-
-            // The icon is black artwork, and the panel it sits on is dark, so
-            // keep its shape and take the panel's ink for its colour.
-            auto cropped = image.getClippedImage (bounds).createCopy();
-            {
-                juce::Image::BitmapData pixelsOut (cropped, juce::Image::BitmapData::readWrite);
-                for (int y = 0; y < cropped.getHeight(); ++y)
-                    for (int x = 0; x < cropped.getWidth(); ++x)
-                        pixelsOut.setPixelColour (x, y, colours::panelInk.withAlpha (pixelsOut.getPixelColour (x, y).getFloatAlpha()));
-            }
-
-            auto result = std::make_unique<HandIcon>();
-            result->image   = cropped;
-            result->aspect  = (float) bounds.getWidth() / (float) bounds.getHeight();
-            result->fingerX = fingerCount > 0 ? (fingerSum / (float) fingerCount - (float) bounds.getX()) / (float) bounds.getWidth() : 0.38f;
-            return result;
-        }
-
-        if (const auto* data = BinaryData::getNamedResource ("hand_svg", size))
-        {
-            if (auto drawable = juce::Drawable::createFromImageData (data, (size_t) size))
-            {
-                auto result = std::make_unique<HandIcon>();
-                const auto b = drawable->getDrawableBounds();
-                if (b.getHeight() > 0.0f)
-                    result->aspect = b.getWidth() / b.getHeight();
-                result->vector = std::move (drawable);
-                return result;
             }
         }
 
@@ -474,64 +415,6 @@ const StringView::HandIcon* StringView::handIcon()
 }
 
 //==============================================================================
-void StringView::drawPointerHand (juce::Graphics& g, juce::Rectangle<float> box, juce::Colour line)
-{
-    // A comic pointer hand: a tall index finger, three folded fingers as
-    // knuckle bumps, a long back of the hand and a thumb that grows out of
-    // it. Built from rounded strips in a 100 x 130 design space; every part
-    // is first filled slightly enlarged in the line colour, then at true size
-    // in white, so the union shows one outline and no inner seams.
-    const auto scale = box.getHeight() / 130.0f;
-    const auto origin = juce::Point<float> (box.getX(), box.getY());
-    const float lineW = 2.2f;
-
-    auto strip = [&] (float x, float y, float w, float h, float r)
-    {
-        juce::Path p;
-        p.addRoundedRectangle (origin.x + x * scale, origin.y + y * scale, w * scale, h * scale, r * scale);
-        return p;
-    };
-
-    auto thumb = [] (juce::Point<float> o, float k)
-    {
-        // Starts well inside the palm, bulges out to a round tip on the left
-        // and comes back to meet the index finger's edge in a soft web.
-        auto at = [o, k] (float x, float y) { return o + juce::Point<float> (x, y) * k; };
-        juce::Path p;
-        p.startNewSubPath (at (44.0f, 122.0f));
-        p.lineTo          (at (28.0f, 118.0f));
-        p.quadraticTo     (at (22.0f, 106.0f), at (8.0f, 84.0f));     // outer edge: straight-ish, angled up-left
-        p.quadraticTo     (at (1.0f, 73.0f),   at (9.0f, 67.0f));     // a small, tight tip
-        p.quadraticTo     (at (17.0f, 62.0f),  at (22.0f, 72.0f));    // over the knuckle...
-        p.lineTo          (at (31.0f, 86.0f));                        // ...and down into the web at the finger
-        p.lineTo          (at (44.0f, 100.0f));
-        p.closeSubPath();
-        return p;
-    };
-
-    std::vector<juce::Path> parts;
-    parts.push_back (strip (30.0f, 0.0f,  17.0f, 74.0f, 8.5f));   // index finger
-    parts.push_back (strip (48.0f, 36.0f, 17.0f, 40.0f, 8.5f));   // middle (folded)
-    parts.push_back (strip (66.0f, 44.0f, 17.0f, 34.0f, 8.5f));   // ring
-    parts.push_back (strip (84.0f, 52.0f, 15.0f, 28.0f, 7.5f));   // little
-    parts.push_back (strip (24.0f, 64.0f, 75.0f, 66.0f, 15.0f));  // back of the hand, long
-    parts.push_back (thumb (origin, scale));                      // thumb, grown out of the palm's side
-
-    // Outline: every part enlarged by the line width, in the line colour
-    g.setColour (line);
-    for (auto& part : parts)
-    {
-        juce::Path outline;
-        juce::PathStrokeType (lineW, juce::PathStrokeType::curved, juce::PathStrokeType::rounded).createStrokedPath (outline, part);
-        g.fillPath (outline);
-        g.fillPath (part);
-    }
-
-    // Body: the same parts in white, which covers the inner lines
-    g.setColour (colours::panel);
-    for (auto& part : parts)
-        g.fillPath (part);
-}
 
 //==============================================================================
 void StringView::paint (juce::Graphics& g)
@@ -650,22 +533,15 @@ void StringView::drawMarker (juce::Graphics& g, int index) const
     {
         if (const auto* icon = handIcon())
         {
-            // The icon: the pluck's frame while it plays, the hand at rest otherwise.
-            const auto frame = pluckFrame();
-            const auto& image = icon->frames[0].isValid() ? icon->frames[(size_t) juce::jmax (0, frame)] : icon->image;
-            if (image.isValid())
-            {
-                // drawImage takes the current colour's alpha as its opacity,
-                // and the faint phase snapshots of the string may have just set it.
-                g.setOpacity (1.0f);
-                g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
-                g.drawImage (image, box, juce::RectanglePlacement::stretchToFit);
-            }
-            else if (icon->vector != nullptr)
-                icon->vector->drawWithin (g, box, juce::RectanglePlacement::centred, 1.0f);
+            // The pluck's frame while it plays, the hand at rest otherwise.
+            const auto& image = icon->frames[(size_t) juce::jmax (0, pluckFrame())];
+
+            // drawImage takes the current colour's alpha as its opacity, and
+            // the faint snapshots of the string may have just set it.
+            g.setOpacity (1.0f);
+            g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+            g.drawImage (image, box, juce::RectanglePlacement::stretchToFit);
         }
-        else
-            drawPointerHand (g, box, colours::panelInk);
     }
     else
     {

@@ -11,7 +11,6 @@
   <MAINGROUP id="y7K82v" name="Chorda">
     <GROUP id="{A1B2C3D4-0005-0000-0000-000000000005}" name="Resources">
       <FILE id="pdFntB" name="Bagnard.otf" compile="0" resource="1" file="Resources/Bagnard.otf"/>
-      <FILE id="pdHndP" name="hand.png" compile="0" resource="1" file="Resources/hand.png"/>
       <FILE id="pdHnd1" name="hand_pluck_1.png" compile="0" resource="1" file="Resources/hand_pluck_1.png"/>
       <FILE id="pdHnd2" name="hand_pluck_2.png" compile="0" resource="1" file="Resources/hand_pluck_2.png"/>
       <FILE id="pdHnd3" name="hand_pluck_3.png" compile="0" resource="1" file="Resources/hand_pluck_3.png"/>

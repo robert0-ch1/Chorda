@@ -108,7 +108,6 @@ private:
     juce::Rectangle<float> markerBounds (int index) const noexcept;
     int   markerAt (juce::Point<int> p) const noexcept;
     void  drawMarker (juce::Graphics&, int index) const;
-    static void drawPointerHand (juce::Graphics&, juce::Rectangle<float> box, juce::Colour line);
     struct HandIcon;
     static const HandIcon* handIcon();
 
