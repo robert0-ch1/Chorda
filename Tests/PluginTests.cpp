@@ -14,6 +14,7 @@
 namespace chorda_test
 {
 
+/** Every factory preset loads cleanly and renders finite, audible, bounded audio. */
 void testFactoryPresets (TestReport& report, const juce::File& outDir)
 {
     report.section ("4. Factory presets render");
@@ -43,11 +44,11 @@ void testFactoryPresets (TestReport& report, const juce::File& outDir)
                       "renders finite, audible, bounded audio: " + name, "peak " + juce::String (peak, 3));
     }
 
-    // Moving a knob must flip the modified flag.
     setParameter (processor, pluck::ParamID::stringDecay, 1.234f);
     report.check (presets.isModified(), "editing a parameter marks the preset modified");
 }
 
+/** Every parameter and the preset name survive getStateInformation / setStateInformation. */
 void testStateRoundTrip (TestReport& report)
 {
     report.section ("5. Host state round trip");
@@ -86,6 +87,7 @@ void testStateRoundTrip (TestReport& report)
     report.check (! restored.getPresetManager().isModified(), "restored state is not marked modified");
 }
 
+/** The processor renders at 44.1 and 96 kHz after being prepared at each. */
 void testSampleRateChange (TestReport& report)
 {
     report.section ("6. Sample-rate change");
@@ -103,6 +105,7 @@ void testSampleRateChange (TestReport& report)
     report.check (allFinite (at96) && at96.getMagnitude (0, at96.getNumSamples()) > 0.01f, "renders at 96 kHz");
 }
 
+/** Width 0 is bit-exact mono, width 1 decorrelates within 3 dB of the mono level, 0.5 sits between. */
 void testStereoWidth (TestReport& report)
 {
     report.section ("7. Stereo width");
@@ -152,13 +155,14 @@ void testStereoWidth (TestReport& report)
     report.check (halfCorr > corr && halfCorr < 1.0, "width 0.5: between mono and full width (correlation " + juce::String (halfCorr, 2) + ")");
 }
 
-/** Nothing runs away and nothing leaves louder than +6 dBFS. */
+/** Output never exceeds +6 dBFS, the limiter is transparent below its ceiling, and
+    random playing never makes the string run away. */
 void testSafety (TestReport& report)
 {
     using namespace pluck::ParamID;
     report.section ("9. Safety");
 
-    // The limiter: a loud chord through full drive and +12 dB of gain.
+    // Ceiling: eight-note chord at full drive and +12 dB gain.
     {
         ChordaAudioProcessor processor;
         setParameter (processor, outputGain,  12.0f);
@@ -173,8 +177,7 @@ void testSafety (TestReport& report)
                       "peak " + juce::String (juce::Decibels::gainToDecibels (peak), 2) + " dBFS");
     }
 
-    // A normal level passes the limiter untouched: width 0 stays exact mono,
-    // and a quiet note is the same with the limiter's ceiling far away.
+    // Below the ceiling the limiter is transparent: width 0 stays bit-exact mono.
     {
         ChordaAudioProcessor processor;
         makeDryTestPatch (processor);
@@ -186,10 +189,8 @@ void testSafety (TestReport& report)
                       "below the ceiling the limiter is not there");
     }
 
-    // Playing and turning knobs at random, as a player might: a hundred runs
-    // of six seconds, a random knob every 100 ms, random bends, a second note
-    // now and then. The string itself must never pass 3 (a working one stays
-    // under 1), whatever the limiter does after it.
+    // 100 runs of 6 s: a random knob every 100 ms, random bends, occasional extra notes.
+    // The string level (pre-limiter) must stay below 3; a healthy string stays under 1.
     {
         juce::Random rng (99);
         const char* ids[] = { exciterTone, exciterAttack, exciterPosition, stringDecay, stringSustain, stringRelease, stringBrightness,
@@ -230,7 +231,8 @@ void testSafety (TestReport& report)
     }
 }
 
-/** The reverb, last in the chain. */
+/** Reverb send, last in the chain: zero is bit-exact, the tail rings on, loudness
+    follows the knob, the dry path is untouched and the tail is stereo. */
 void testReverb (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
@@ -275,8 +277,7 @@ void testReverb (TestReport& report, const juce::File& outDir)
                   "the send adds the room on top of the dry string, in step with the knob",
                   juce::String (halfLoud - dryLoud, 1) + " dB at half, " + juce::String (fullLoud - dryLoud, 1) + " dB at full");
 
-    // A send leaves the dry string alone: the first milliseconds, before the
-    // room has answered, are the dry signal exactly.
+    // Before the first reflection (4 ms) the output equals the dry signal.
     float earlyDifference = 0.0f;
     for (int i = 0; i < seconds (0.004); ++i)
         earlyDifference = juce::jmax (earlyDifference, std::abs (dry.getSample (0, i) - full.getSample (0, i)));

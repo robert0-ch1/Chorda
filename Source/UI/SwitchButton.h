@@ -3,16 +3,11 @@
 
     SwitchButton.h
 
-    SyncButton is the small square that sits on the LFO rate knob and makes
-    it follow the host's tempo. Its glyph is a quaver, drawn rather than set,
-    so it needs no font with musical characters in it. It is a juce::Button
-    in toggle mode, so a ButtonAttachment binds it to a parameter and host
-    automation moves it.
+    SyncButton: toggle with a drawn quaver glyph for LFO tempo sync, bound
+    to a parameter through a ButtonAttachment.
 
-    TargetSwitch is the Damp LFO's Target: a slide switch in a knob-sized
-    square, Position at the top and Pressure at the bottom, that picks which
-    damper LFO the knobs beside it edit. A small blue dot beside a name says
-    that LFO is running.
+    TargetSwitch: knob-sized two-way slide switch selecting which damper LFO
+    the adjacent knobs edit. A dot marks each LFO that is active.
 
   ==============================================================================
 */
@@ -45,7 +40,7 @@ public:
         g.setColour (on ? colours::ink : colours::hairline);
         g.drawRoundedRectangle (bounds, 3.0f, 1.0f);
 
-        // A quaver: a filled head, a stem up its right side, one flag.
+        // Quaver: filled head, stem, one flag.
         const auto ink = on ? colours::white : colours::dim;
         const auto box = bounds.reduced (bounds.getWidth() * 0.26f, bounds.getHeight() * 0.2f);
         const auto headSize = box.getWidth() * 0.62f;
@@ -74,12 +69,12 @@ class TargetSwitch final : public juce::Component,
 {
 public:
     /** @param names      the two choices, top first
-        @param isRunning  tells whether each choice's LFO is on, for its dot */
+        @param isRunning  returns whether the LFO at an index is active */
     TargetSwitch (juce::StringArray names, std::function<bool (int)> isRunning)
         : choices (std::move (names)), running (std::move (isRunning))
     {
         setTitle (choices.joinIntoString (" / "));
-        startTimerHz (30);   // the thumb's slide, and the running dots following the Amount knobs
+        startTimerHz (30);   // thumb animation and active-dot polling
     }
 
     ~TargetSwitch() override   { stopTimer(); }
@@ -87,9 +82,7 @@ public:
     int  getSelected() const noexcept   { return selected; }
     std::function<void (int)> onChange;
 
-    /** Its name above, like a knob's, then a square face the size of a knob:
-        the first choice written at the top, the second at the bottom, and a
-        short slide switch between them whose thumb goes to the one chosen. */
+    /** Title above a knob-sized face; choice labels at top and bottom with the slot between. */
     void paint (juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().toFloat();
@@ -104,7 +97,6 @@ public:
         g.setColour (hovered ? colours::mid : colours::hairline);
         g.drawRoundedRectangle (face.reduced (0.5f), 6.0f, 1.0f);
 
-        // The slot, and the thumb in it.
         const auto slot = trackBounds();
         g.setColour (colours::track);
         g.fillRoundedRectangle (slot, slot.getWidth() * 0.5f);
@@ -116,8 +108,7 @@ public:
         g.setColour (colours::ink);
         g.fillEllipse (thumb);
 
-        // The two names, spelled out, at the ends the thumb goes to, and a
-        // dot beside each one that is running.
+        // Choice labels, with a dot beside each active LFO.
         const auto labelFont = fonts::value().withHeight (9.5f);
         for (int i = 0; i < 2; ++i)
         {
@@ -139,7 +130,7 @@ public:
     void mouseMove (const juce::MouseEvent&) override   { if (! hovered) { hovered = true;  repaint(); } }
     void mouseExit (const juce::MouseEvent&) override   { if (hovered)   { hovered = false; repaint(); } }
 
-    // A click anywhere flips it, like a toggle; dragging the thumb moves it.
+    // Click toggles; drag selects by vertical position.
     void mouseDown (const juce::MouseEvent&) override   { dragged = false; }
 
     void mouseDrag (const juce::MouseEvent& e) override
@@ -156,8 +147,8 @@ public:
             choose (1 - selected);
     }
 
-    static constexpr float titleHeight = 20.0f;   // the same as a knob's name
-    static constexpr float faceSize    = 54.0f;   // the same as a knob
+    static constexpr float titleHeight = 20.0f;   // matches ParameterKnob::titleHeight
+    static constexpr float faceSize    = 54.0f;   // matches the knob disc
     static constexpr float labelHeight = 13.0f;
 
 private:
@@ -176,13 +167,12 @@ private:
         auto bounds = getLocalBounds().toFloat();
         bounds.removeFromTop (titleHeight);
         const auto face = bounds.withSizeKeepingCentre (faceSize, faceSize);
-        // A short slot between the two names.
         return juce::Rectangle<float> (12.0f, faceSize - 2.0f * labelHeight - 4.0f).withCentre (face.getCentre());
     }
 
     void timerCallback() override
     {
-        // The thumb slides rather than jumps.
+        // Ease the thumb towards the selection.
         const auto target = (float) selected;
         if (! juce::exactlyEqual (position, target))
         {
@@ -204,7 +194,7 @@ private:
     const juce::String name { "Target" };
     std::function<bool (int)> running;
     int   selected = 0, shownRunning = -1;
-    float position = 0.0f;    ///< the thumb, 0 at the top, 1 at the bottom
+    float position = 0.0f;    ///< thumb position, 0 top to 1 bottom
     bool  hovered = false, dragged = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TargetSwitch)

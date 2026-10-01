@@ -14,6 +14,7 @@
 namespace chorda_test
 {
 
+/** Velocity and mod wheel brighten, octave transposes, full damper pressure stays bounded and in tune. */
 void testPerformanceControls (TestReport& report, const juce::File& outDir)
 {
     report.section ("1j. Velocity, mod wheel, octave, damper pressure");
@@ -38,8 +39,7 @@ void testPerformanceControls (TestReport& report, const juce::File& outDir)
     {
         const auto soft = renderNote ([] (auto&) {}, 57, 0.2f);
         const auto hard = renderNote ([] (auto&) {}, 57, 1.0f);
-        // The 4th partial: the test patch picks at 20 %, a node of the 5th,
-        // and the string is heard there too, so the 5th is not there to measure.
+        // 4th partial: the test patch picks at 20 %, a node of the 5th.
         const auto softHigh = partialLevelDb (soft, seconds (0.1), seconds (0.3), 220.0f, 4);
         const auto hardHigh = partialLevelDb (hard, seconds (0.1), seconds (0.3), 220.0f, 4);
         report.check (hardHigh > softHigh + 3.0f, "hard velocity is brighter than soft",
@@ -76,6 +76,7 @@ void testPerformanceControls (TestReport& report, const juce::File& outDir)
     }
 }
 
+/** Polyphony limits cap the active voices; Mono uses one. */
 void testVoiceModes (TestReport& report)
 {
     report.section ("1i. Voice modes");
@@ -107,6 +108,7 @@ void testVoiceModes (TestReport& report)
 
 }
 
+/** Releasing one note leaves the other voices sounding. */
 void testPolyphonyIsIndependent (TestReport& report, const juce::File& outDir)
 {
     report.section ("2. Releasing one note keeps the others sounding");
@@ -114,14 +116,13 @@ void testPolyphonyIsIndependent (TestReport& report, const juce::File& outDir)
     ChordaAudioProcessor processor;
     makeDryTestPatch (processor);
 
-    // Reference: E on its own, so we know how loud it should be at 0.7-0.9 s.
+    // Reference: E alone, measured at 0.7 to 0.9 s.
     const auto solo = render (processor,
                               { { seconds (0.1), juce::MidiMessage::noteOn  (1, 64, 0.9f) },
                                 { seconds (1.0), juce::MidiMessage::noteOff (1, 64) } },
                               seconds (1.5));
 
-    // Same again with A held underneath and released at 0.5 s. If note-off
-    // wrongly silenced every voice (the original bug), E would vanish too.
+    // Same with A underneath, released at 0.5 s: E must keep at least half its level.
     const auto audio = render (processor,
                                { { 0,             juce::MidiMessage::noteOn  (1, 57, 0.9f) },
                                  { seconds (0.1), juce::MidiMessage::noteOn  (1, 64, 0.9f) },
@@ -141,6 +142,7 @@ void testPolyphonyIsIndependent (TestReport& report, const juce::File& outDir)
     report.check (peakAfterAll < 1.0e-4f, "silence after both notes released", "peak " + juce::String (peakAfterAll, 6));
 }
 
+/** 40 notes on 16 voices: finite, bounded, fades out; a chord gets one voice per note. */
 void testVoiceStealing (TestReport& report, const juce::File& outDir)
 {
     report.section ("3. More notes than voices");
@@ -181,7 +183,7 @@ void testGlideAndLegato (TestReport& report, const juce::File& outDir)
     const auto lowHz  = (float) juce::MidiMessage::getMidiNoteInHertz (48);
     const auto highHz = (float) juce::MidiMessage::getMidiNoteInHertz (60);
 
-    // --- Glide: a mono voice re-plucked on a new note starts at the old pitch
+    // Glide: a mono voice re-plucked on a new note starts at the old pitch.
     {
         ChordaAudioProcessor processor;
         makeDryTestPatch (processor);
@@ -196,8 +198,7 @@ void testGlideAndLegato (TestReport& report, const juce::File& outDir)
                                    seconds (3.0));
         writeWav (outDir, "01m_glide", audio);
 
-        // Early in a long glide the string is still near where it came from;
-        // a short window, because the pitch is moving under the measurement.
+        // Short window early in a long glide, since the pitch moves during the measurement.
         const auto atStart = estimateFrequency (audio, seconds (0.53), seconds (0.09), lowHz);
         const auto atEnd   = estimateFrequency (audio, seconds (2.4),  seconds (0.4),  highHz);
 
@@ -210,17 +211,14 @@ void testGlideAndLegato (TestReport& report, const juce::File& outDir)
         report.check (allFinite (audio), "the glide stays finite");
     }
 
-    // --- Legato: a second key while the first is down must not pluck again
+    // Legato: a second key while the first is held must not re-pluck.
     auto secondNoteAttack = [&] (const char* mode)
     {
         ChordaAudioProcessor processor;
         makeDryTestPatch (processor);
         setParameter (processor, voiceMode,  (float) pluck::voiceModeNames.indexOf (mode));
         setParameter (processor, pitchGlide, 0.001f);
-        // A decay short enough that the string is well down by the time the
-        // second key goes down, so plucking it again is unmistakable, but long
-        // enough that it is still ringing: legato has nothing to slide if the
-        // string has already died and the voice has been handed back.
+        // Short enough that a re-pluck stands out, long enough that the string still rings for legato to slide.
         setParameter (processor, stringDecay, 1.5f);
 
         const auto audio = render (processor,
@@ -247,9 +245,7 @@ void testGlideAndLegato (TestReport& report, const juce::File& outDir)
                   juce::String (legatoPitch, 1) + " Hz, wanted " + juce::String (highHz, 1) + " Hz");
 }
 
-/** A glide plucks the string at the note it starts from, as loud as a plain
-    pluck of that note. It used to set the pluck up for the note it was
-    heading to: up to 4 dB too loud gliding down, 6 dB too quiet gliding up. */
+/** A glide plucks at its start note, as loud as a plain pluck of that note. */
 void testGlideLevel (TestReport& report)
 {
     using namespace pluck::ParamID;
@@ -272,9 +268,8 @@ void testGlideLevel (TestReport& report)
         const auto plain  = secondPeak (from, from, 0.001f);
         const auto glided = secondPeak (from, to, 0.3f);
         const auto db = juce::Decibels::gainToDecibels (glided / juce::jmax (plain, 1.0e-9f));
-        // Within 1.5 dB: a fast glide up leaves a bump of about 1 dB in its
-        // first 40 ms, from the pickup's delay moving with the pitch. The bug
-        // this guards against was 4 to 6 dB.
+        // 1.5 dB tolerance: a fast upward glide has a ~1 dB bump in its first 40 ms
+        // from the pickup delay tracking the pitch.
         report.check (std::abs (db) < 1.5f, "a glide from " + juce::String (from) + " to " + juce::String (to) + " plucks as loud as " + juce::String (from),
                       juce::String (db, 2) + " dB");
     }
@@ -351,9 +346,8 @@ void testLfo (TestReport& report, const juce::File& outDir)
                       "largest difference " + juce::String (difference, 8));
     }
 
-    // Rate and Amount: a 2 Hz sine for 3 s is six cycles, twelve crossings,
-    // and 20 % Amount swings the damper a tenth of the string either side of
-    // where it is set (20 %), so from 10 % to 30 %. (100 % reaches the whole string.)
+    // 2 Hz for 3 s is twelve crossings; 20 % Amount swings the damper +/-10 % of the
+    // string around its 20 % setting (100 % spans the whole string).
     {
         ChordaAudioProcessor processor;
         patch (processor);
@@ -392,8 +386,7 @@ void testLfo (TestReport& report, const juce::File& outDir)
                       "largest difference " + juce::String (difference, 8));
     }
 
-    // The pressure LFO: bipolar around the set pressure (80 %), 20 % Amount
-    // is a tenth of the range either way, at its own rate.
+    // Pressure LFO: bipolar around the set 80 %, 20 % Amount is +/-10 %, at its own rate.
     {
         ChordaAudioProcessor processor;
         patch (processor);
@@ -445,8 +438,7 @@ void testLfo (TestReport& report, const juce::File& outDir)
                       juce::String (juce::Decibels::gainToDecibels (late / juce::jmax (early, 1.0e-6f)), 1) + " dB over 6 s");
     }
 
-    // Following the host (120 BPM when there is none): 1.7 Hz is nearest a
-    // quarter note, which at that tempo is 2 Hz.
+    // Sync: with no host the tempo is 120 BPM, where 1.7 Hz snaps to a quarter note (2 Hz).
     {
         ChordaAudioProcessor processor;
         patch (processor);
@@ -466,9 +458,8 @@ void testLfo (TestReport& report, const juce::File& outDir)
 }
 
 //==============================================================================
-/** Changing notes in Mono and Legato does not click. Mono steals its one
-    voice for every note, and that used to stop the old string dead; Legato
-    with no Glide retuned the loop in less than a period. */
+/** Note changes do not click in Mono (which steals its single voice) or in Legato
+    without glide (which retunes the ringing loop). */
 void testNoteChangesDoNotClick (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
@@ -497,8 +488,7 @@ void testNoteChangesDoNotClick (TestReport& report, const juce::File& outDir)
                         + (c.overlap ? ", keys overlapping" : ", first key let go");
         writeWav (outDir, "01y_" + name.replace (" ", "_").replace (",", ""), audio);
 
-        // The biggest sample-to-sample step across the change, against the
-        // string's own before it. A string stopped dead was 14 to 19 dB up.
+        // Largest sample step across the change, relative to the largest step just before it.
         const auto* x = audio.getReadPointer (0);
         auto maxStep = [&] (int from, int to)
         {

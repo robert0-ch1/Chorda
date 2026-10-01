@@ -3,23 +3,9 @@
 
     PluginEditor.h
 
-    The plugin window: a header with the title and the preset strip, then a
-    compact grid of cards.
-
-        Chorda   < Preset >              [save] [save as] [bin]
-        [ Voices 16         Glide off          Octave 0         ]
-        [ STRING, on a dark panel                               ]
-        [ TIMBRE           ]  [ ENVELOPE                        ]
-        [ LFO                   ]  [ OUTPUT                     ]
-
-    The two columns split the window in half, and every card spreads its
-    controls evenly: 3 and 4 above; below, the Damp LFO's Position /
-    Pressure switch (a square the size of a knob), its Amount and its Rate,
-    then the 4 Output knobs.
-
-    All controls live in MainView, laid out once at a fixed reference size;
-    the editor scales that view as a whole when the host resizes the window,
-    keeping the aspect ratio fixed.
+    Plugin window: a header with title and preset bar above a two-column grid
+    of cards. MainView is laid out at a fixed reference size and the editor
+    scales it to the window, keeping the aspect ratio.
 
   ==============================================================================
 */
@@ -63,7 +49,7 @@ private:
 
     pluck::ui::PresetBar presetBar;
 
-    Card stringCard   { {}, true };   // drawn on an inverted panel; the voice line is its heading
+    Card stringCard   { {}, true };   // inverted panel, headed by the voice row
     Card timbreCard   { "TIMBRE" };
     Card lfoCard      { "DAMP LFO" };
     Card envelopeCard { "ENVELOPE" };
@@ -71,15 +57,14 @@ private:
 
     Knob toneKnob, brightnessKnob, subKnob;
 
-    // The voice line across the top of the string panel
+    // Voice row across the top of the string panel
     pluck::ui::ParameterBox voiceModeBox, glideBox, octaveBox;
 
     pluck::ui::StringView stringView;
 
     Knob attackKnob, decayKnob, sustainKnob, releaseKnob;
 
-    // LFO: moves the damper along the string
-    // Two LFOs share one pair of knobs: the switch between them picks which.
+    // Position and pressure LFOs share one knob slot; the switch selects which pair is visible.
     Knob lfoAmountKnob, lfoRateKnob, lfoPressureAmountKnob, lfoPressureRateKnob;
     pluck::ui::TargetSwitch lfoTargetSwitch;
     void showLfo (int target);

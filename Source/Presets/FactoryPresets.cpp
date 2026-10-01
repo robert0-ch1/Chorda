@@ -3,17 +3,11 @@
 
     FactoryPresets.cpp
 
-    Values are in the units shown in the UI: milliseconds for the attack,
-    seconds for decay and release, Hz for brightness and LFO rates, 0..1 for
-    percentages, dB for gain. String positions are fractions of the whole
-    string, 0 the bridge, 0.5 the middle, 1 the nut. Choice parameters use the
-    index into their option list: voiceMode into voiceModeNames (0 Mono,
-    1 Legato, 8 is 8 voices, 9 is 16), pitchOctave into octaveNames (2 is 0,
-    1 is -1, 3 is +1). Tone runs 0 = sine, 0.5 = square, 1 = noise burst.
-
-    The set runs from basses through guitars and keys to pads. Every value
-    was set by ear in the plugin and saved from it, so each preset lists all
-    of its parameters.
+    Units match the UI: attack in ms; decay and release in s; brightness and
+    LFO rates in Hz; percentages as 0..1; gain in dB. Positions run 0 (bridge)
+    to 1 (nut). Choices are option indices: voiceMode (0 Mono, 1 Legato,
+    8 = 8 voices, 9 = 16), pitchOctave (1 = -1, 2 = 0, 3 = +1).
+    Tone: 0 sine, 0.5 square, 1 noise burst.
 
   ==============================================================================
 */
@@ -30,7 +24,7 @@ const std::vector<FactoryPreset>& getFactoryPresets()
 
     static const std::vector<FactoryPreset> presets
     {
-        // "Init" is deliberately empty: every parameter at its default.
+        // All defaults
         { "Init", {} },
 
         // --- Basses ------------------------------------------------------------

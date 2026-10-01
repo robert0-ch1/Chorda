@@ -3,28 +3,18 @@
 
     RenderTest.cpp
 
-    Offline test harness for the Chorda processor. It instantiates the
-    plugin without a host, feeds it MIDI, and inspects the rendered audio:
+    Offline test harness for the Chorda processor: runs the plugin without a
+    host, feeds it MIDI and checks the rendered audio.
 
-      1. note-off produces a smooth release, not a click, and sustain /
-         decay behave as string damping;
-      2. releasing one note does not silence the others;
-      3. hammering more notes than there are voices neither crashes nor
-         produces NaNs;
-      4. every factory preset renders finite audio;
-      5. host state survives a save / restore round trip;
-      6. a sample-rate change is handled.
+    Usage:
+      PluckRenderTest [output-dir]       run all tests, optionally writing each scenario as WAV
+      PluckRenderTest --screenshot <file.png> [pluck frame 0..2]
+                                         render the editor offscreen to PNG (README screenshot)
+      PluckRenderTest --measure-tone     print peak and K-weighted level per exciter tone, note, attack
+      PluckRenderTest --fuzz N           N renders with random parameters and notes
+      PluckRenderTest --fuzz-live N      N runs with random parameter changes while playing
 
-    Usage:  PluckRenderTest [output-directory]
-    If a directory is given, the rendered scenarios are written there as WAV
-    files so you can listen to them.
-
-            PluckRenderTest --screenshot <file.png> [pluck frame 0..2]
-    Renders the editor offscreen at its default size and saves it as a PNG,
-    optionally with the pick hand held on one frame of its pluck.
-    Used to keep the README screenshot in sync with the real UI.
-
-    Exit code is the number of failed checks (0 = all good).
+    The test run exits with the number of failed checks.
 
   ==============================================================================
 */

@@ -3,9 +3,8 @@
 
     KarplusDamper.cpp
 
-    What is heard of the string: the pickup comb at the pick, then the
-    dampener (the blue dot), with their level make-up.
-    Part of KarplusVoice; everything here runs on the audio thread.
+    Output filtering: pickup comb at the pick position, then the damper comb
+    cascade, with level make-up. Audio thread.
 
   ==============================================================================
 */
@@ -20,8 +19,7 @@ using namespace voice;
 
 float KarplusVoice::currentDamperPosition() const noexcept
 {
-    // The position LFO swings the finger either side of where it is set. It
-    // never lifts it off: a damper that is off stays off.
+    // The LFO modulates position only while the damper is on.
     if (params.damperModulation == nullptr || mirroredPosition (params.damperPosition) <= 0.0f)
         return params.damperPosition;
 
@@ -35,32 +33,29 @@ float KarplusVoice::currentDamperPressure() const noexcept
 
 float KarplusVoice::damperDelayFor (float position) const noexcept
 {
-    // A finger at p touches the same nodes as one at 1 - p, so the filter
-    // works on the near side of the middle. At either end it touches nothing
-    // that moves, which is off.
+    // p and 1 - p share nodes, so work on the mirrored position. 0 is off.
     position = mirroredPosition (position);
     if (position <= 0.0f)
         return 0.0f;
 
-    // Fractional, so a moving finger slides the notches rather than stepping them.
+    // Fractional, so moving notches slide smoothly.
     const auto maxDelay = ((float) damperHistory.size() - 4.0f) / (float) damperStages;
     return juce::jlimit (1.0f, maxDelay, position * periodSamples);
 }
 
 void KarplusVoice::updateDamperFilter() noexcept
 {
-    // Where the damper is heading. Off is a depth of zero at the last place
-    // it was, so it fades out rather than vanishing.
+    // Off fades the depth to zero and keeps the last delay.
     const auto delay = damperDelayFor (currentDamperPosition());
     damperMixTarget = delay > 0.0f ? maximumDamperMix * currentDamperPressure() : 0.0f;
     if (delay > 0.0f)
         damperDelayTarget = delay;
 
-    // Coming on from nowhere: start at the place, and let the depth fade in.
+    // Switching on: jump to the delay, fade the depth in.
     if (damperDelay <= 0.0f)
         damperDelay = damperDelayTarget;
 
-    // The listening point is the pick, over the whole string.
+    // Pickup at the pick position.
     listenDelayTarget = juce::jlimit (1.0f, (float) listenHistory.size() * 0.2f,
                                       juce::jlimit (pickPositionMinimum, positionMaximum, params.pickPosition) * periodSamples);
 }
@@ -87,7 +82,7 @@ void KarplusVoice::glideDamper (bool snap) noexcept
         if (std::abs (damperMixTarget   - damperMix)   < 1.0e-5f) damperMix   = damperMixTarget;
     }
 
-    // The binomial weights of ((1 - m) + m z^-D)^N, tap by tap.
+    // Binomial tap weights of ((1 - m) + m z^-D)^N.
     const auto a = 1.0f - damperMix, b = damperMix;
     std::array<float, 7> powA {}, powB {};
     powA[0] = powB[0] = 1.0f;
@@ -111,7 +106,7 @@ float KarplusVoice::readHistory (const std::vector<float>& history, int writeInd
     const auto whole = (int) delay;
     const auto fraction = delay - (float) whole;
 
-    auto index = writeIndex - 1 - whole;   // the newest sample sits just behind the write index
+    auto index = writeIndex - 1 - whole;   // newest sample is just behind the write index
     while (index < 0)
         index += size;
 
@@ -128,13 +123,9 @@ float KarplusVoice::readDamperHistory (float delay) const noexcept
 
 float KarplusVoice::applyDamper (float input) noexcept
 {
-    // Where the string is heard from: the point it is plucked at, as a
-    // pickup under the pick would hear it. A point q along the string picks
-    // up mode n as sin (n pi q), which is the comb (1 - z^-(qP)) / 2. The
-    // pluck position used to act only at the moment of the pluck, so moving
-    // the pick while a note rang changed nothing until the next one; now it
-    // reshapes the ringing string the same way it shapes the pluck, sliding
-    // as it moves. After the string, not in it, so it cannot feed back.
+    // Pickup at the pick point q: mode n is weighted by sin (n pi q), i.e. the
+    // comb (1 - z^-(qP)) / 2. Outside the loop, so it follows pick changes on a
+    // ringing note without feeding back.
     listenHistory[(size_t) listenWriteIndex] = input;
     if (++listenWriteIndex >= (int) listenHistory.size())
         listenWriteIndex = 0;
@@ -142,8 +133,7 @@ float KarplusVoice::applyDamper (float input) noexcept
     listenDelay += (listenDelayTarget - listenDelay) * damperGlideCoeff;
     const auto heard = 0.5f * (input - readHistory (listenHistory, listenWriteIndex, listenDelay));
 
-    // The damper works on what is heard. Its history always runs, so it has
-    // the string's recent past to work on the moment it comes on.
+    // History always runs so the damper has valid input when it switches on.
     damperHistory[(size_t) damperWriteIndex] = heard;
     if (++damperWriteIndex >= (int) damperHistory.size())
         damperWriteIndex = 0;
@@ -157,12 +147,9 @@ float KarplusVoice::applyDamper (float input) noexcept
                 shaped += damperWeights[(size_t) k] * readDamperHistory ((float) k * damperDelay);
     }
 
-    // Level make-up. The reference is the string itself, read at the two
-    // filters' centre of gravity (half the pickup delay, plus N m D for the
-    // damper), so the two rise together at the pluck and the gain does not
-    // overshoot it. Both are mean squares over the same short window, so
-    // their ratio holds still through the envelope: the pickup and the damper
-    // change the colour, not the level, and not the shape of the note in time.
+    // Level make-up against the unfiltered string, delayed by the filters'
+    // group delay (half the pickup delay plus N m D) so attacks line up.
+    // Both mean squares share one window, so the gain is steady over the envelope.
     const auto reference = readHistory (listenHistory, listenWriteIndex,
                                         0.5f * listenDelay + (damperMix > 0.0f ? (float) damperStages * damperMix * damperDelay : 0.0f));
     damperLevelIn  += (reference * reference - damperLevelIn)  * damperLevelCoeff;

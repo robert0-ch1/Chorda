@@ -27,13 +27,15 @@ pluck::ui::StringView* findStringView (juce::Component& parent)
     return nullptr;
 }
 
+/** Renders the editor offscreen at its default size to a PNG, optionally with the
+    pick hand held on one frame of its pluck. */
 int saveEditorScreenshot (const juce::File& file, int pluckFrame)
 {
     ChordaAudioProcessor processor;
-    auto& presets = processor.getPresetManager();          // something more interesting than "Init"
+    auto& presets = processor.getPresetManager();          // a representative patch, not Init
     presets.loadPresetAtIndex (juce::jmax (0, presets.getAllPresetNames().indexOf ("Nylon Guitar")));
 
-    // Play a chord for a moment so the string drawing is alive.
+    // Render a short chord so the string view has motion to draw.
     render (processor, { { 0, juce::MidiMessage::noteOn (1, 52, 0.9f) },
                          { 0, juce::MidiMessage::noteOn (1, 59, 0.9f) },
                          { 0, juce::MidiMessage::noteOn (1, 64, 0.9f) } }, seconds (0.05));
@@ -45,12 +47,11 @@ int saveEditorScreenshot (const juce::File& file, int pluckFrame)
         return 1;
     }
 
-    // Optionally hold the pick hand on one frame of its pluck.
     if (pluckFrame >= 0)
         if (auto* view = findStringView (*editor))
             view->showPluckFrameForSnapshot (pluckFrame);
 
-    // Paint at 2x for a crisp image on high-DPI displays.
+    // 2x scale for high-DPI displays.
     const auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f);
 
     file.getParentDirectory().createDirectory();
@@ -69,6 +70,7 @@ int saveEditorScreenshot (const juce::File& file, int pluckFrame)
     return 0;
 }
 
+/** Prints peak and K-weighted level (dB) for sine, square and noise across notes and attack times. */
 int measureTone()
 {
     using namespace pluck::ParamID;
@@ -80,7 +82,7 @@ int measureTone()
             for (float tone : { 0.0f, 0.5f, 1.0f })
             {
                 double pk = 0, rms = 0;
-                const int n = tone > 0.9f ? 8 : 1;
+                const int n = tone > 0.9f ? 8 : 1;   // the noise exciter is random: average 8 renders
                 for (int r = 0; r < n; ++r)
                 {
                     ChordaAudioProcessor processor;
@@ -97,6 +99,8 @@ int measureTone()
     return 0;
 }
 
+/** Renders `count` random patches with two notes and optional bends; prints runs
+    that go non-finite or peak above 3. */
 int fuzz (int count)
 {
     using namespace pluck::ParamID;
@@ -153,6 +157,8 @@ int fuzz (int count)
     return 0;
 }
 
+/** Changes a random parameter every 100 ms while playing; prints runs whose string
+    level passes 3 or whose output reaches the limiter ceiling (reported as 99). */
 int fuzzLive (int count)
 {
     using namespace pluck::ParamID;

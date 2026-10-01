@@ -3,11 +3,8 @@
 
     KarplusSound.h
 
-    juce::Synthesiser pairs every voice with a "sound" object that decides
-    which notes and channels it responds to. Chorda has a single
-    string model that covers the whole keyboard, so this class is trivially
-    permissive. It exists only so KarplusVoice::canPlaySound() has something
-    to match against.
+    Single SynthesiserSound accepting all notes and channels, matched by
+    KarplusVoice::canPlaySound().
 
   ==============================================================================
 */

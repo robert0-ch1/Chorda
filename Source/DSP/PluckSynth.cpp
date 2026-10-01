@@ -40,7 +40,7 @@ juce::SynthesiserVoice* PluckSynth::findFreeVoice (juce::SynthesiserSound* sound
     if (! stealIfNoneAvailable)
         return nullptr;
 
-    // Steal: prefer a string that is already being released, then the oldest.
+    // Steal the oldest releasing voice, else the oldest.
     juce::SynthesiserVoice* oldestReleasing = nullptr;
     juce::SynthesiserVoice* oldest = nullptr;
 
@@ -92,8 +92,7 @@ void PluckSynth::noteOn (int midiChannel, int midiNoteNumber, float velocity)
         heldNotes.removeAllInstancesOf (midiNoteNumber);
         heldNotes.add (midiNoteNumber);
 
-        // A key pressed while another is still down slides the string that is
-        // already ringing: no new pluck, which is what legato means.
+        // Overlapping key: slide the ringing voice, no retrigger.
         if (auto* voice = legatoVoice())
         {
             voice->slideToNote (midiNoteNumber);
@@ -104,8 +103,7 @@ void PluckSynth::noteOn (int midiChannel, int midiNoteNumber, float velocity)
     juce::Synthesiser::noteOn (midiChannel, midiNoteNumber, velocity);
     legatoStartedNote = midiNoteNumber;
 
-    // Portamento: the note that just started is pulled back to where the last
-    // one was, and slides from there.
+    // Portamento: start the new voice at the previous pitch.
     if (glideEnabled && from > 0.0f)
         for (auto* v : voices)
             if (auto* voice = dynamic_cast<KarplusVoice*> (v))
@@ -124,8 +122,7 @@ void PluckSynth::noteOff (int midiChannel, int midiNoteNumber, float velocity, b
 
     heldNotes.removeAllInstancesOf (midiNoteNumber);
 
-    // Lifting one finger of a legato phrase falls back to whichever key is
-    // still down, rather than stopping the string.
+    // Return to the most recent held key instead of releasing.
     if (! heldNotes.isEmpty())
     {
         if (auto* voice = legatoVoice())

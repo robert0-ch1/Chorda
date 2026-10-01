@@ -3,10 +3,8 @@
 
     SectionCard.h
 
-    A light card with a centred small-capitals caption, or none when the
-    caption is empty. Each group of controls lives on one of these, so the
-    groups read as separate objects. Children are added by the editor;
-    getContentBounds() is the area below the caption.
+    Rounded card that groups controls, with an optional centred caption.
+    Children are added by the editor and laid out in getContentBounds().
 
   ==============================================================================
 */
@@ -22,7 +20,7 @@ namespace pluck::ui
 class SectionCard final : public juce::Component
 {
 public:
-    /** @param darkPanel  true for the inverted panel the string is drawn on */
+    /** @param darkPanel  draw as the inverted string panel */
     explicit SectionCard (juce::String captionText, bool darkPanel = false)
         : caption (std::move (captionText)), dark (darkPanel)
     {
@@ -45,7 +43,7 @@ public:
         }
     }
 
-    /** The area below the caption (if any), inset from the edges. */
+    /** Padded area below the caption, if any. */
     juce::Rectangle<int> getContentBounds() const
     {
         return getLocalBounds().reduced (padding).withTrimmedTop (getCaptionSpace());

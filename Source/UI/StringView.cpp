@@ -17,36 +17,36 @@ namespace
 {
     constexpr float endRadius     = 5.5f;
     constexpr float markerSize    = 14.0f;
-    constexpr float maxAmplitude  = 30.0f;   ///< pixels of string displacement at full level, exaggerated on purpose
-    constexpr int   numSnapshots  = 7;       ///< earlier phases of the cycle drawn faintly behind the string
-    constexpr float levelDecay    = 0.93f;   ///< per frame, keeps the string swinging a little after the sound
-    constexpr float periodsPerFrame = 0.083f; ///< animation speed: a fast flutter, about 5 cycles a second
+    constexpr float maxAmplitude  = 30.0f;   ///< pixels at full level, deliberately exaggerated
+    constexpr int   numSnapshots  = 7;       ///< faint earlier phases drawn behind the string
+    constexpr float levelDecay    = 0.93f;   ///< per-frame release of the display level
+    constexpr float periodsPerFrame = 0.083f; ///< about 5 cycles per second at 60 Hz
     constexpr float secondsPerFrame = 1.0f / 60.0f;
     constexpr int   numPoints     = 160;
     constexpr int   numPartials   = 24;
     constexpr float pressurePixels = 110.0f; ///< vertical drag distance for the full pressure range
     constexpr float damperLiftLight = 82.0f;  ///< dot height above the string at zero pressure
-    constexpr float damperLiftHard  = 14.0f;  ///< and at full pressure
-    constexpr float handAspect      = 100.0f / 130.0f;   ///< width over height of the pointer hand
+    constexpr float damperLiftHard  = 14.0f;  ///< dot height at full pressure
+    constexpr float handAspect      = 100.0f / 130.0f;   ///< fallback hand width / height
     constexpr float handHeight      = markerSize * 2.9f * 1.2f;
-    constexpr float handDrop        = -1.5f;  ///< the fingertip just touches the string (negative: a hair over it, behind it)
-    constexpr float pressPixels     = 7.0f;   ///< how far the string gives under a finger being held on it
+    constexpr float handDrop        = -1.5f;  ///< fingertip offset from the string; negative overlaps it
+    constexpr float pressPixels     = 7.0f;   ///< string deflection under a held pick
 
-    // The pluck, from the user's three-frame GIF: 0.1 s a frame, as it was drawn.
+    // Pluck animation: three frames, 0.1 s each.
     constexpr int   pluckFrames       = 3;
     constexpr float pluckFrameSeconds = 0.1f;
-    constexpr float pluckRise         = 4.0f;              ///< the hand comes up a little as the finger flicks
-    constexpr float handFrameScale    = 3.0f;              ///< frames are kept at three times their drawn size
+    constexpr float pluckRise         = 4.0f;              ///< hand lift during the pluck
+    constexpr float handFrameScale    = 3.0f;              ///< frames cached at 3x draw size
 
     const juce::Colour damperColour = colours::damper;
 }
 
-/** The plucking hand: its three frames, cropped alike, and where its fingertip is. */
+/** Pluck hand frames, sharing one crop, and the fingertip position. */
 struct StringView::HandIcon
 {
-    std::array<juce::Image, pluckFrames> frames;   ///< frame 0 is also the hand at rest
+    std::array<juce::Image, pluckFrames> frames;   ///< frame 0 doubles as the rest pose
     float aspect  = handAspect;   ///< width over height
-    float fingerX = 0.38f;        ///< the fingertip's position across the width, 0..1
+    float fingerX = 0.38f;        ///< fingertip x, 0..1 of width
 };
 
 //==============================================================================
@@ -68,11 +68,11 @@ StringView::StringView (juce::AudioProcessorValueTreeState& apvts, std::function
     positionLfoAmount = std::make_unique<Bound> (*apvts.getParameter (ParamID::lfoAmount),         onChange);
     pressureLfoAmount = std::make_unique<Bound> (*apvts.getParameter (ParamID::lfoPressureAmount), onChange);
 
-    // Notes already played before the window opened are not plucked again.
+    // Ignore note-ons that happened before the editor opened.
     if (noteOnSource)
         lastNoteOnCount = noteOnSource();
 
-    // Start with whatever is sounding right now (matters for offscreen renders).
+    // Seed from the current level so offscreen renders show a moving string.
     level = displayLevelFor (levelSource());
     time  = 0.06f;
     age   = 0.08f;
@@ -90,8 +90,7 @@ float StringView::bridgeX() const noexcept   { return (float) postInset; }
 float StringView::nutX() const noexcept      { return (float) (getWidth() - postInset); }
 float StringView::stringY() const noexcept
 {
-    // Anchored so the hand below and the lifted damper above both stay
-    // inside our bounds (a child component is clipped to them).
+    // Anchored so the hand below and the raised damper above stay inside the bounds.
     return (float) getHeight() - (handDrop + handHeight + 3.0f);
 }
 
@@ -107,8 +106,7 @@ float StringView::positionForX (float x) const noexcept
 
 float StringView::movingDamperPosition() const noexcept
 {
-    // Where the finger really is, for the drawing of the string: the position
-    // LFO moves it, but never lifts off a damper that is off.
+    // Used for the string pinch. Returns 0 when the damper is off, whatever the LFO does.
     if (mirroredPosition (damperPosition->value) <= 0.0005f
         || (damperPressure->value <= 0.0f && pressureLfoAmount->value <= 0.0f))
         return 0.0f;
@@ -124,8 +122,7 @@ juce::Rectangle<float> StringView::markerBounds (int index) const noexcept
 
     if (index == pick)
     {
-        // The pointer hand: index finger tip just under the string at x. The
-        // finger's position across the hand comes from the icon if there is one.
+        // Hand placed so the fingertip (from the icon, if loaded) sits at the pick x.
         const auto x = xForPosition (pickPosition->value);
         const auto* icon = handIcon();
         const auto aspect  = icon != nullptr ? icon->aspect  : handAspect;
@@ -135,8 +132,7 @@ juce::Rectangle<float> StringView::markerBounds (int index) const noexcept
         return { x - w * fingerX, y + handDrop - rise, w, h };
     }
 
-    // The dot sits high when it presses lightly, close to the string when it
-    // presses hard, and goes where the LFOs take it unless it is held.
+    // Dot height maps inversely to pressure.
     const auto x = xForPosition (shownDamperPosition());
     const auto lift = juce::jmap (shownDamperPressure(), 0.0f, 1.0f, damperLiftLight, damperLiftHard);
     return { x - size * 0.5f, y - lift - size, size, size };
@@ -149,9 +145,7 @@ bool StringView::damperFrozen() const noexcept
 
 float StringView::shownDamperPosition() const noexcept
 {
-    // The dot sits where it is set unless the position LFO is moving it. (The
-    // drawn string's pinch uses movingDamperPosition, which is 0 when the
-    // damper is off; the dot itself stays where it can be grabbed.)
+    // Unlike movingDamperPosition, an off damper keeps its set position so the dot stays grabbable.
     if (damperFrozen() || damperModulated < 0.0f || mirroredPosition (damperPosition->value) <= 0.0005f)
         return damperPosition->value;
     return juce::jlimit (pickPositionMinimum, positionMaximum, damperModulated);
@@ -172,9 +166,7 @@ juce::Rectangle<float> StringView::auraBounds() const noexcept
         || (damperPressure->value <= 0.0f && ! pressing) || ! (moving || pressing))
         return {};
 
-    // Across: as far as the position LFO reaches either side. Up and down:
-    // from the highest the dot rises (the lightest pressure it is taken to)
-    // down to the string.
+    // Horizontal: position LFO swing. Vertical: from the lightest modulated pressure down to the string.
     const auto centre = damperPosition->value;
     const auto swing  = positionLfoAmount->value * lfoPositionDepth;
     const auto left   = xForPosition (juce::jlimit (pickPositionMinimum, positionMaximum, centre - swing)) - markerSize * 0.5f;
@@ -192,19 +184,17 @@ void StringView::drawAura (juce::Graphics& g) const
     if (area.isEmpty())
         return;
 
-    // A haze rather than a shape: light that is strongest where the finger
-    // spends its time and fades to nothing well past the edges, breathing
-    // slowly, with a few sparks drifting through it. Brighter while held.
+    // Soft pulsing glow with drifting sparks; brighter while the dot is frozen.
     const auto breath   = 0.5f + 0.5f * std::sin (auraPhase);
     const auto strength = (damperFrozen() ? 1.0f : 0.7f) * (0.8f + 0.2f * breath);
     const auto centre   = area.getCentre();
 
-    // A wide, faint bloom, blurred far out.
+    // Wide blurred bloom
     juce::Path bloom;
     bloom.addEllipse (area.reduced (area.getWidth() * 0.2f, area.getHeight() * 0.25f));
     juce::DropShadow (damperColour.withAlpha (0.35f * strength), 30, {}).drawForPath (g, bloom);
 
-    // The haze itself: a radial falloff stretched to the area.
+    // Radial falloff stretched to the area
     {
         juce::Graphics::ScopedSaveState state (g);
         const auto rx = area.getWidth() * 0.66f, ry = area.getHeight() * 0.8f;
@@ -216,15 +206,14 @@ void StringView::drawAura (juce::Graphics& g) const
         g.fillEllipse (juce::Rectangle<float> (rx * 2.0f, rx * 2.0f).withCentre (centre));
     }
 
-    // A brighter thread along the stretch of string it touches.
+    // Highlight along the string segment covered
     juce::ColourGradient thread (damperColour.withAlpha (0.0f), area.getX(), stringY(),
                                  damperColour.withAlpha (0.0f), area.getRight(), stringY(), false);
     thread.addColour (0.5, damperColour.brighter (0.4f).withAlpha (0.35f * strength));
     g.setGradientFill (thread);
     g.fillRoundedRectangle (juce::Rectangle<float> (area.getX(), stringY() - 1.5f, area.getWidth(), 3.0f), 1.5f);
 
-    // Sparks: fixed places in the area, each drifting up a little and
-    // twinkling at its own rate.
+    // Sparks at hash-derived positions, drifting up and twinkling at different rates.
     constexpr int sparks = 9;
     for (int i = 0; i < sparks; ++i)
     {
@@ -252,18 +241,14 @@ int StringView::markerAt (juce::Point<int> p) const noexcept
 
 float StringView::displacementAt (float x, float phaseOffset) const noexcept
 {
-    // The plucked string as the sum of its partials. At the pluck they add up
-    // to the pulled triangle with its apex at the pick; each partial then
-    // swings at its own rate and dies faster the higher it is (and the darker
-    // the Brightness), so the shape relaxes into the smooth bow of the
-    // fundamental within a fraction of a second, like a real string.
+    // Fourier series of a triangle with its apex at the pick. Partial n decays
+    // with n^2, faster at low Brightness, so the shape relaxes to the fundamental.
     const auto p = juce::jlimit (0.03f, 0.97f, pickPosition->value);
     const auto brightness = brightnessParameter.getValue();            // 0..1, logarithmic
-    // Slow enough that the kink at the pick stays in view for a while: where
-    // the string was plucked is the whole point of the drawing.
+    // Kept slow so the kink at the pick stays visible.
     const auto dampingRate = juce::jmap (1.0f - brightness, 0.0f, 1.0f, 1.2f, 6.0f);   // per second, scaled by n^2
 
-    // Normalisation that makes the full series a triangle of height 1 at the apex.
+    // Normalises the series to unit height at the apex.
     const auto norm = 2.0f / (juce::MathConstants<float>::pi * juce::MathConstants<float>::pi * p * (1.0f - p));
 
     float shape = 0.0f;
@@ -276,7 +261,7 @@ float StringView::displacementAt (float x, float phaseOffset) const noexcept
                * std::cos (juce::MathConstants<float>::twoPi * fn * (time + phaseOffset));
     }
 
-    // A finger on the string pins it: pinch the shape to a node under the damper.
+    // Damper pinches the shape towards a node, scaled by pressure.
     if (movingDamperPosition() > 0.0005f)
     {
         const auto d = movingDamperPosition();
@@ -284,8 +269,7 @@ float StringView::displacementAt (float x, float phaseOffset) const noexcept
         shape *= 1.0f - pinch;
     }
 
-    // A finger held on the string pushes it up into a shallow triangle, apex
-    // at the finger, whatever the string is doing.
+    // Held pick adds a static triangular deflection with its apex at the pick.
     const auto give = press * pressPixels * (x < p ? x / p : (1.0f - x) / (1.0f - p));
 
     return shape * level * maxAmplitude + give;
@@ -295,8 +279,7 @@ float StringView::displacementAt (float x, float phaseOffset) const noexcept
 
 namespace
 {
-    /** How much ink a pixel of the hand artwork carries, 0..1: dark and
-        opaque is ink; light, or see-through, is not. */
+    /** Ink coverage of a pixel, 0..1: opacity times darkness. */
     float inkAt (const juce::Image::BitmapData& pixels, int x, int y)
     {
         const auto c = pixels.getPixelColour (x, y);
@@ -309,16 +292,13 @@ namespace
 
 const StringView::HandIcon* StringView::handIcon()
 {
-    // Loaded once.
     static const std::unique_ptr<HandIcon> icon = []() -> std::unique_ptr<HandIcon>
     {
         int size = 0;
 
-        // The plucking hand: three frames of black line art, transparent (or
-        // white) around it and inside it. Cut away what is not ink and reaches
-        // the edge of the picture; fill what the lines enclose white and keep
-        // the lines dark, as the hand always was on this panel. All three share one crop, so the hand does
-        // not jump from frame to frame, and they are scaled down once here.
+        // Loaded once from three line-art PNGs. Light pixels flood-filled from the
+        // edges become transparent; the rest is recoloured for the panel. All
+        // frames share one crop so the hand does not jump, and are downscaled once.
         {
             std::array<juce::Image, pluckFrames> sources;
             bool found = true;
@@ -415,20 +395,15 @@ const StringView::HandIcon* StringView::handIcon()
 }
 
 //==============================================================================
-
-//==============================================================================
 void StringView::paint (juce::Graphics& g)
 {
-    // The card behind us draws the background; we draw only the string.
+    // Background is drawn by the parent card.
     const auto y0 = stringY();
     const auto x0 = bridgeX();
     const auto x1 = nutX();
 
-    // The damper's field, faintly, behind everything: where it can go. Across,
-    // its position over the whole string, a line every tenth, bridge to nut.
-    // Up, its pressure, a line every quarter, from the string at rest (the
-    // x axis, y = 0, full pressure lying on the string's side of it) to where
-    // the dot rides at no pressure at all.
+    // Faint damper grid: position in tenths across, pressure in quarters from
+    // the zero-pressure dot height down to full pressure.
     {
         const auto dotCentreFor = [y0] (float pressure)
         {
@@ -448,23 +423,19 @@ void StringView::paint (juce::Graphics& g)
             g.drawLine (x0, y, x1, y, 0.6f);
         }
 
-        // The origin: the string at rest.
+        // String at rest
         g.setColour (colours::panelLine);
         g.drawLine (x0, y0, x1, y0, 1.0f);
     }
 
-    // The half-way point
+    // Midpoint tick
     const auto midX = xForPosition (0.5f);
     g.setColour (colours::panelLine);
     g.drawLine (midX, y0 - 10.0f, midX, y0 + 10.0f, 1.0f);
 
-    // Where the LFOs take the damper, behind everything else
     drawAura (g);
 
-    // Like a physics diagram of a vibrating string: thin lines, the motion
-    // exaggerated. Earlier moments of the cycle are drawn faintly behind the
-    // present one, so the swept shape (the triangle of the pluck relaxing
-    // into the bow of the fundamental) reads at a glance.
+    // Current shape plus faint earlier phases of the cycle, showing the swept envelope.
     auto shapeAt = [&] (float phaseOffset)
     {
         juce::Path shape;
@@ -488,14 +459,13 @@ void StringView::paint (juce::Graphics& g)
         }
     }
 
-    // The hand is always behind the string: its fingertip rests just touching
-    // it, and plucks from behind.
+    // Hand is drawn behind the string.
     drawMarker (g, pick);
 
     g.setColour (colours::panelInk);
     g.strokePath (shapeAt (0.0f), juce::PathStrokeType (1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    // The two fixed ends
+    // Bridge and nut
     g.fillEllipse (juce::Rectangle<float> (endRadius * 2.0f, endRadius * 2.0f).withCentre ({ x0, y0 }));
     g.fillEllipse (juce::Rectangle<float> (endRadius * 2.0f, endRadius * 2.0f).withCentre ({ x1, y0 }));
 
@@ -516,13 +486,12 @@ void StringView::drawMarker (juce::Graphics& g, int index) const
 
     const auto& positionBound = index == pick ? *pickPosition : *damperPosition;
     const auto  position = positionBound.value;
-    // Only the damper can be lifted off: at either end of the string, or
-    // pressing with no pressure at all (unless its LFO presses it).
+    // Damper is off at either end, or at zero pressure with no pressure LFO.
     const bool  off = index == damper && (mirroredPosition (position) <= 0.0005f
                                           || (damperPressure->value <= 0.0f && pressureLfoAmount->value <= 0.0f));
     const auto  x   = box.getCentreX();
 
-    // Off, the dot is a grey ball; with no pressure it also says so.
+    // At zero pressure the label stays visible to say the damper is off.
     const bool noPressure = index == damper && damperPressure->value <= 0.0f && pressureLfoAmount->value <= 0.0f
                             && mirroredPosition (position) > 0.0005f;
     auto fill = damperColour;
@@ -533,11 +502,9 @@ void StringView::drawMarker (juce::Graphics& g, int index) const
     {
         if (const auto* icon = handIcon())
         {
-            // The pluck's frame while it plays, the hand at rest otherwise.
             const auto& image = icon->frames[(size_t) juce::jmax (0, pluckFrame())];
 
-            // drawImage takes the current colour's alpha as its opacity, and
-            // the faint snapshots of the string may have just set it.
+            // drawImage uses the current colour's alpha; reset it after the faint snapshots.
             g.setOpacity (1.0f);
             g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
             g.drawImage (image, box, juce::RectanglePlacement::stretchToFit);
@@ -545,7 +512,7 @@ void StringView::drawMarker (juce::Graphics& g, int index) const
     }
     else
     {
-        // The damper: a dot on a hairline stalk down to the string
+        // Damper: dot on a hairline stalk
         juce::Path dot;
         dot.addEllipse (box);
         g.setColour (colours::panelDim);
@@ -556,8 +523,7 @@ void StringView::drawMarker (juce::Graphics& g, int index) const
         g.strokePath (dot, juce::PathStrokeType (1.0f));
     }
 
-    // Name and value only while hovered or dragged, beside the marker so they
-    // never run off the top or bottom of the card
+    // Label beside the marker while hovered or dragged, clamped to the bounds.
     if (active || noPressure)
     {
         auto text = juce::String (index == pick ? "Pick  " : "Damp  ")
@@ -571,12 +537,12 @@ void StringView::drawMarker (juce::Graphics& g, int index) const
 
         auto labelBox = juce::Rectangle<float> (width, 14.0f).withCentre ({ 0.0f, labelY });
         labelBox.setX (box.getRight() + 8.0f);
-        if (labelBox.getRight() > (float) getWidth() - 4.0f)      // near the right edge: flip to the left
+        if (labelBox.getRight() > (float) getWidth() - 4.0f)      // flip left near the right edge
             labelBox.setX (box.getX() - 8.0f - width);
         labelBox.setY (juce::jlimit (2.0f, juce::jmax (2.0f, (float) getHeight() - 16.0f), labelBox.getY()));
 
         g.setFont (font);
-        g.setColour (active ? colours::panelInk : colours::panelDim);   // "Damp off" stays up, quieter
+        g.setColour (active ? colours::panelInk : colours::panelDim);   // dimmed when shown only for "off"
         g.drawText (text, labelBox, juce::Justification::centredLeft);
     }
 }
@@ -584,8 +550,7 @@ void StringView::drawMarker (juce::Graphics& g, int index) const
 //==============================================================================
 float StringView::displayLevelFor (float audioLevel) noexcept
 {
-    // Square root so that quiet notes still move the string visibly; the
-    // signal itself peaks well below 1.0 for a single string.
+    // Square root keeps quiet notes visible; a single string peaks well below 1.0.
     return std::sqrt (juce::jlimit (0.0f, 1.0f, audioLevel * 2.5f));
 }
 
@@ -616,11 +581,11 @@ void StringView::timerCallback()
 
     if (! auraBounds().isEmpty())
     {
-        auraPhase = std::fmod (auraPhase + 0.05f, juce::MathConstants<float>::twoPi);   // about 2 s a breath
+        auraPhase = std::fmod (auraPhase + 0.05f, juce::MathConstants<float>::twoPi);   // about 2 s period
         repaint();
     }
 
-    // Every note-on plucks with the hand: play its three frames.
+    // Start the pluck animation on each new note-on.
     if (noteOnSource)
     {
         const auto count = noteOnSource();
@@ -638,14 +603,14 @@ void StringView::timerCallback()
         repaint();
     }
 
-    // A new pluck: restart from the pulled-triangle shape at the finger.
+    // Level jump detected: restart the shape from the initial triangle.
     if (incoming > previous * 1.6f && incoming > 0.05f)
     {
         time = 0.0f;
         age  = 0.0f;
     }
 
-    // The string gives a little under a finger that is being held on it.
+    // Ease the pick deflection towards its target.
     const auto pressTarget = (draggedMarker == pick || hoveredMarker == pick) ? 1.0f : 0.0f;
     if (! juce::exactlyEqual (press, pressTarget))
     {
@@ -672,8 +637,7 @@ void StringView::timerCallback()
 //==============================================================================
 void StringView::mouseMove (const juce::MouseEvent& e)
 {
-    // Over the LFOs' area, the dot holds still at its set place so it can be
-    // found and grabbed. Decided first, since it moves the dot.
+    // Check the aura first: hovering it freezes the dot, which changes marker hit-testing.
     const auto inAura = auraBounds().expanded (10.0f).contains (e.position);
     if (inAura != auraHovered)
     {
@@ -706,7 +670,7 @@ void StringView::mouseDown (const juce::MouseEvent& e)
 {
     draggedMarker = markerAt (e.getPosition());
 
-    // Clicking the bare string grabs the pick, the most-used control.
+    // Clicking near the bare string grabs the pick.
     if (draggedMarker < 0 && std::abs ((float) e.y - stringY()) < 14.0f)
         draggedMarker = pick;
 
@@ -733,7 +697,7 @@ void StringView::mouseDrag (const juce::MouseEvent& e)
     }
     else if (draggedMarker == damper)
     {
-        // Sideways moves the finger, downwards presses harder.
+        // Horizontal drag sets position, vertical drag sets pressure (down is harder).
         damperPosition->attachment.setValueAsPartOfGesture (positionForX ((float) e.x));
         const auto pressure = dragStartPressure + (float) (e.y - dragStartY) / pressurePixels;
         damperPressure->attachment.setValueAsPartOfGesture (juce::jlimit (0.0f, 1.0f, pressure));

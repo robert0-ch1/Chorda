@@ -3,12 +3,8 @@
 
     PluckSynth.h
 
-    juce::Synthesiser with a polyphony limit, a legato mode and portamento.
-
-    Only the first N voices are ever handed out, so changing the limit is a
-    single store, no allocation on the audio thread. N = 1 is mono: every
-    note re-plucks the single string. When all N voices are busy the one
-    already being released is stolen first, then the oldest.
+    juce::Synthesiser with a polyphony limit, legato and portamento.
+    Only the first N voices are allocated, so changing N never allocates.
 
   ==============================================================================
 */
@@ -26,17 +22,16 @@ class PluckSynth final : public juce::Synthesiser
 public:
     PluckSynth() = default;
 
-    /** Sets how many voices may sound. */
+    /** Maximum sounding voices, clamped to the voice count. */
     void setMaxPolyphony (int polyphony) noexcept;
 
     /** Voices currently sounding. */
     int getActiveVoiceCount() const noexcept;
 
-    /** Legato: one string, and a new key while another is down slides it
-        rather than plucking it again. */
+    /** Mono without retrigger: overlapping keys slide the ringing string. */
     void setLegato (bool shouldBeLegato) noexcept;
 
-    /** Whether a new note starts at the pitch of the one before it. */
+    /** Portamento: new notes start at the previous note's pitch. */
     void setGlideEnabled (bool shouldGlide) noexcept   { glideEnabled = shouldGlide; }
 
     void noteOn (int midiChannel, int midiNoteNumber, float velocity) override;
@@ -48,16 +43,16 @@ protected:
                                            int midiNoteNumber, bool stealIfNoneAvailable) const override;
 
 private:
-    /** The one voice a legato phrase is riding on, if any. */
+    /** Active, non-releasing voice used by legato, or nullptr. */
     KarplusVoice* legatoVoice() const noexcept;
 
     int  maxPolyphony = 16;
     bool legato       = false;
     bool glideEnabled = false;
 
-    juce::Array<int> heldNotes;     ///< keys down, in the order they went down
-    int   legatoStartedNote = -1;   ///< the note the synthesiser thinks that voice holds
-    float previousNoteHz    = 0.0f; ///< where the next note glides from
+    juce::Array<int> heldNotes;     ///< held keys, oldest first
+    int   legatoStartedNote = -1;   ///< note the base class assigned to the voice
+    float previousNoteHz    = 0.0f; ///< glide start for the next note
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluckSynth)
 };

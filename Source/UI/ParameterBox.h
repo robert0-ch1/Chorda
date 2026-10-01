@@ -3,13 +3,9 @@
 
     ParameterBox.h
 
-    A parameter as a line of text: its name, then its value, sitting on the
-    dark string panel with no box around it. Drag up or down to change it,
-    double-click to put it back to its default, or roll the wheel over it. A
-    choice (the voice mode) also opens its list on a plain click.
-
-    Used for the few controls that belong in a line of text rather than in a
-    row of knobs: Voices, Glide and the octave transposer.
+    Parameter drawn as inline "name value" text on the dark string panel.
+    Vertical drag, wheel and double-click reset; choice parameters also open
+    a menu on click.
 
   ==============================================================================
 */
@@ -25,9 +21,8 @@ namespace pluck::ui
 class ParameterBox final : public juce::Component
 {
 public:
-    /** @param displayName    the name drawn before the value
-        @param justification  where the text sits in the component: the voice
-                              line puts one at each end and one in the middle */
+    /** @param displayName    label drawn before the value
+        @param justification  horizontal placement of the text within the bounds */
     ParameterBox (juce::AudioProcessorValueTreeState& apvts, const juce::String& parameterID,
                   const juce::String& displayName, juce::Justification justification)
         : parameter (*apvts.getParameter (parameterID)),
@@ -57,7 +52,7 @@ public:
         else if (placement.testFlags (juce::Justification::right))
             x = bounds.getRight() - valuePad - total;
 
-        // The value is what you move, so it is what lights up.
+        // Hover highlight covers the value only.
         const auto valueArea = juce::Rectangle<float> (x + nameWidth + nameGap, bounds.getY(), valueWidth, bounds.getHeight());
         if (hovering || dragging)
         {
@@ -88,7 +83,7 @@ public:
     {
         if (dragging)
             attachment.setValueAsPartOfGesture (parameter.convertFrom0to1 (
-                juce::jlimit (0.0f, 1.0f, dragStart - (float) e.getDistanceFromDragStartY() / dragPixels)));   // up is more
+                juce::jlimit (0.0f, 1.0f, dragStart - (float) e.getDistanceFromDragStartY() / dragPixels)));   // up increases
     }
 
     void mouseUp (const juce::MouseEvent& e) override
@@ -114,7 +109,7 @@ public:
         if (std::abs (wheel.deltaY) < 1.0e-4f)
             return;
 
-        // A choice steps one entry per notch; anything else moves by a fixed share of its range.
+        // Choices step one entry per notch; others move a fixed fraction of the range.
         const auto step = isChoice() ? 1.0f / (float) juce::jmax (1, parameter.getNumSteps() - 1) : wheelStep;
         attachment.setValueAsCompleteGesture (parameter.convertFrom0to1 (
             juce::jlimit (0.0f, 1.0f, parameter.getValue() + (wheel.deltaY > 0.0f ? step : -step))));
@@ -141,7 +136,7 @@ private:
                             });
     }
 
-    static constexpr float dragPixels = 180.0f;   ///< a full sweep of the range
+    static constexpr float dragPixels = 180.0f;   ///< drag distance for the full range
     static constexpr float wheelStep  = 0.04f;
     static constexpr float nameGap    = 6.0f;
     static constexpr float valuePad   = 4.0f;

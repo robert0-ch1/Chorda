@@ -3,12 +3,8 @@
 
     PresetBar.h
 
-    The preset strip:   < Preset name >                  [save] [save as] [bin]
-
-    The arrows step through factory and user presets, clicking the name opens
-    the full list. The three icon buttons: save overwrites the current user
-    preset, save as asks for a name, the bin removes the current user preset. An asterisk after the name marks
-    a preset edited since it was loaded.
+    Preset stepper (previous, name, next) with save, save as and delete
+    buttons. The name opens the full list; "*" marks unsaved edits.
 
   ==============================================================================
 */

@@ -3,10 +3,8 @@
 
     ParameterKnob.h
 
-    A rotary control with its name above. While you hover or drag, the value
-    takes the name's place, as text or, for a knob that has one, as a small
-    drawing. Double-click resets to the default, drag or
-    mouse-wheel to change.
+    Rotary knob with its name above. On hover or drag the label shows the
+    value instead, as text or as a custom drawing.
 
   ==============================================================================
 */
@@ -50,15 +48,13 @@ public:
         slider.setBounds (bounds.withSizeKeepingCentre (side, side));
     }
 
-    /** Lets the value read as something the parameter itself cannot know,
-        such as the note division a synced rate has landed on. */
+    /** Overrides the value text, e.g. a note division for a tempo-synced rate. */
     void setValueTextSource (std::function<juce::String()> source)
     {
         valueTextSource = std::move (source);
     }
 
-    /** Draws the value instead of writing it: the Tone knob shows the
-        waveform it makes. Called with the label's area and the value. */
+    /** Draws the value in the label area instead of text. Receives the area and the slider value. */
     void setValueDrawing (std::function<void (juce::Graphics&, juce::Rectangle<float>, float)> drawing)
     {
         valueDrawing = std::move (drawing);

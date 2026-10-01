@@ -13,17 +13,17 @@ using namespace pluck::ui;
 
 namespace
 {
-    // The grid. Everything below is a multiple of these.
+    // Layout grid.
     constexpr int margin        = 20;
     constexpr int headerHeight  = 52;
     constexpr int gap           = 12;
-    constexpr int knobSize      = 54;    // knob disc
+    constexpr int knobSize      = 54;    // knob disc diameter
     constexpr int knobHeight    = ParameterKnob::titleHeight + knobSize;
     constexpr int cardHeight    = SectionCard::captionHeight + SectionCard::padding * 2 + knobHeight;
-    constexpr int voiceRowHeight = 26;   // the voice line, on the string panel
-    constexpr int voiceGap       = 12;   // from the voice line down to the string
-    constexpr int stringHeight  = 224;   // the panel, voice line included
-    constexpr int stringLift    = 6;     // space left under the pick hand
+    constexpr int voiceRowHeight = 26;   // voice row on the string panel
+    constexpr int voiceGap       = 12;   // voice row to string
+    constexpr int stringHeight  = 224;   // whole panel, voice row included
+    constexpr int stringLift    = 6;     // clearance under the pick hand
     constexpr int titleWidth    = 84;    // "Chorda" in the title font
 }
 
@@ -64,15 +64,13 @@ MainView::MainView (ChordaAudioProcessor& p)
     for (auto* knob : { &toneKnob, &brightnessKnob, &subKnob })
         timbreCard.addAndMakeVisible (knob);
 
-    // The exciter reads as the waveform it makes rather than as a word.
+    // Exciter value is drawn as its waveform.
     toneKnob.setValueDrawing (drawTone);
 
-    // The voice line heads the string panel: how the keyboard plays the string.
     for (auto* box : { &voiceModeBox, &glideBox, &octaveBox })
         stringCard.addAndMakeVisible (box);
 
-    // LFO: two of them, one on the damper's position and one on its pressure,
-    // each an amount and a rate, with the tempo switch on the rate it belongs to.
+    // Damper position and pressure LFOs, each with amount, rate and tempo sync.
     for (auto* knob : { &lfoAmountKnob, &lfoRateKnob, &lfoPressureAmountKnob, &lfoPressureRateKnob })
         lfoCard.addAndMakeVisible (knob);
 
@@ -81,8 +79,7 @@ MainView::MainView (ChordaAudioProcessor& p)
     lfoSyncAttachment         = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (apvts, ParamID::lfoSync,         lfoSyncButton);
     lfoPressureSyncAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (apvts, ParamID::lfoPressureSync, lfoPressureSyncButton);
 
-    // When a rate follows the host it reads as a note division, which only
-    // the processor can work out: it is the one that knows the tempo.
+    // Synced rates display as note divisions; only the processor knows the tempo.
     lfoRateKnob.setValueTextSource         ([&p] { return p.getLfoRateText (false); });
     lfoPressureRateKnob.setValueTextSource ([&p] { return p.getLfoRateText (true); });
 
@@ -105,7 +102,7 @@ void MainView::paint (juce::Graphics& g)
 {
     g.fillAll (colours::white);
 
-    // The header: white, a hairline below, the title in ink
+    // Header hairline and title
     g.setColour (colours::hairline);
     g.drawHorizontalLine (header.getBottom() - 1, 0.0f, (float) getWidth());
 
@@ -119,22 +116,19 @@ void MainView::resized()
 {
     auto bounds = getLocalBounds();
 
-    // Header: title on the left, the preset strip filling the rest
+    // Header: title on the left, preset bar in the remaining width
     header = bounds.removeFromTop (headerHeight);
     presetBar.setBounds (header.reduced (margin, 11).withTrimmedLeft (titleWidth + 16));
 
-    // The same margin all the way round: the rows below are sized to fill
-    // exactly what is left, so the bottom cards sit off the edge by as much as
-    // the top ones sit below the header.
+    // Rows are sized to fill the content area exactly, so the margin is equal on all sides.
     auto content = bounds.reduced (margin);
 
-    // --- The string, on its own dark panel, headed by the voice line ----------
+    // --- String panel with voice row ---------------------------------------------
     {
         stringCard.setBounds (content.removeFromTop (stringHeight));
         auto inside = stringCard.getContentBounds();
 
-        // The line runs from the bridge to the nut, so it sits square over
-        // the string: Voices at one end, Octave at the other, Glide in the middle.
+        // Voice row spans bridge to nut so it aligns with the string.
         auto row = inside.removeFromTop (voiceRowHeight);
         const auto lineArea = row.withTrimmedLeft (StringView::postInset).withTrimmedRight (StringView::postInset);
         const auto cell = lineArea.getWidth() / 3;
@@ -145,14 +139,12 @@ void MainView::resized()
 
         inside.removeFromTop (voiceGap);
 
-        // The string sits in the middle of what is left, as in the wireframe,
-        // rather than down at the bottom where the hand below it would allow.
         stringView.setBounds (inside.withTrimmedBottom (stringLift));
     }
 
     content.removeFromTop (gap);
 
-    // The two columns below split the window in half.
+    // Two equal columns.
     const auto leftColumn = (content.getWidth() - gap) / 2;
 
     // --- TIMBRE | ENVELOPE ------------------------------------------------------
@@ -175,8 +167,7 @@ void MainView::resized()
         row.removeFromLeft (gap);
         outputCard.setBounds (row);
 
-        // Switch | Amount | Rate, three even columns like Timbre above. Both
-        // LFOs' knobs sit in the same places; only one pair shows.
+        // Switch | Amount | Rate in three even columns. Both LFOs share the same slots.
         {
             const auto area = lfoCard.getContentBounds();
             const auto column = area.getWidth() / 3;
@@ -187,13 +178,13 @@ void MainView::resized()
             layoutKnobRow (columnAt (2), { &lfoRateKnob });
             layoutKnobRow (columnAt (2), { &lfoPressureRateKnob });
 
-            // Laid out as a knob is: its name above, a knob-sized face below.
+            // Sized like a knob: title above, knob-sized face below.
             lfoTargetSwitch.setBounds (columnAt (0).withSizeKeepingCentre (juce::jmin (column, knobSize + 24), knobHeight)
                                                    .withY (area.getY()));
         }
         layoutKnobRow (outputCard.getContentBounds(), { &widthKnob, &driveKnob, &reverbKnob, &gainKnob });
 
-        // Each tempo switch belongs to its rate, so it sits on that knob.
+        // Sync buttons sit on the top-right corner of their rate knob.
         for (auto [button, knob] : { std::pair { &lfoSyncButton, &lfoRateKnob }, std::pair { &lfoPressureSyncButton, &lfoPressureRateKnob } })
             button->setBounds (knob->getBounds().withSize (16, 16)
                                    .withX (knob->getRight() - 14)
@@ -203,9 +194,8 @@ void MainView::resized()
 
 void MainView::drawTone (juce::Graphics& g, juce::Rectangle<float> area, float tone)
 {
-    // The same crossfade the voice makes (see KarplusVoice::updateExciterMix):
-    // sine to square straight, square to noise at equal power. Drawn at full
-    // height whatever the mix, since this is the shape, not the level.
+    // Same crossfade as KarplusVoice::updateExciterMix: linear sine to square,
+    // equal-power square to noise. Normalised to full height.
     tone = juce::jlimit (0.0f, 1.0f, tone);
     float sineGain = 0.0f, squareGain = 0.0f, noiseGain = 0.0f;
     if (tone <= toneSquare)
@@ -220,7 +210,7 @@ void MainView::drawTone (juce::Graphics& g, juce::Rectangle<float> area, float t
         noiseGain  = std::sin (angle);
     }
 
-    // Two cycles, with the noise drawn from a fixed seed so it holds still.
+    // Two cycles; fixed seed keeps the noise static between repaints.
     constexpr int points = 64;
     juce::Random random (7);
     std::array<float, points + 1> samples {};
@@ -244,7 +234,6 @@ void MainView::drawTone (juce::Graphics& g, juce::Rectangle<float> area, float t
         if (i == 0) wave.startNewSubPath (x, y); else wave.lineTo (x, y);
     }
 
-    // Drawn in the ink the knob names use.
     g.setColour (colours::ink);
     g.strokePath (wave, juce::PathStrokeType (1.2f, juce::PathStrokeType::mitered, juce::PathStrokeType::butt));
 }
@@ -281,8 +270,7 @@ ChordaAudioProcessorEditor::ChordaAudioProcessorEditor (ChordaAudioProcessor& p)
     : AudioProcessorEditor (&p),
       mainView (p)
 {
-    // The view must be a child before the look-and-feel is set: JUCE only
-    // notifies existing children.
+    // Add the view before setting the look-and-feel: JUCE only notifies existing children.
     addAndMakeVisible (mainView);
     setLookAndFeel (&lookAndFeel);
     juce::LookAndFeel::setDefaultLookAndFeel (&lookAndFeel);

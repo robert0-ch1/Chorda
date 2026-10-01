@@ -14,6 +14,7 @@
 namespace chorda_test
 {
 
+/** Note-off releases smoothly to silence, including a 20 ms release on a low note. */
 void testReleaseHasNoClick (TestReport& report, const juce::File& outDir)
 {
     report.section ("1. Note-off release is click-free");
@@ -37,17 +38,15 @@ void testReleaseHasNoClick (TestReport& report, const juce::File& outDir)
     report.check (allFinite (audio), "output is finite");
     report.check (peakBefore > 0.01f, "string is still sounding at note-off", "peak " + juce::String (peakBefore, 4));
 
-    // A click is a step far larger than anything in the steady-state waveform.
-    // With a 100 ms release the envelope adds almost nothing per sample.
+    // A click is a step well above the steady-state maximum; a 100 ms release adds almost nothing per sample.
     report.check (stepAfter <= stepBefore * 1.5f + 1.0e-4f, "no step discontinuity after note-off",
                   "before " + juce::String (stepBefore, 5) + ", after " + juce::String (stepAfter, 5));
 
-    // 100 ms release (T60) + margin, then silence.
+    // 100 ms T60 plus margin.
     const auto tailPeak = peakBetween (audio, noteOff + seconds (0.25), audio.getNumSamples());
     report.check (tailPeak < 1.0e-4f, "output is silent after the release", "peak " + juce::String (tailPeak, 6));
 
-    // The same with a very fast release on a low note: the damping is smoothed
-    // over one period, so even a 20 ms release must not step the level.
+    // 20 ms release on A1: damping is smoothed over one period, so it must not step either.
     setParameter (processor, pluck::ParamID::stringRelease, 0.02f);
     const auto fast = render (processor,
                               { { noteOn,  juce::MidiMessage::noteOn  (1, 45, 1.0f) },
@@ -63,12 +62,13 @@ void testReleaseHasNoClick (TestReport& report, const juce::File& outDir)
                   "20 ms release is silent within 100 ms");
 }
 
+/** Full sustain holds a high note; long decays stay bounded across brightness, damper and pitch. */
 void testHoldAndStability (TestReport& report, const juce::File& outDir)
 {
     report.section ("1f. Hold works at every pitch and the loop never blows up");
     using namespace pluck::ParamID;
 
-    // Full sustain on a high note: the string must still be there after 1.5 s.
+    // Full sustain on A5: within 6 dB over 1.4 s.
     {
         ChordaAudioProcessor processor;
         makeDryTestPatch (processor);
@@ -87,9 +87,7 @@ void testHoldAndStability (TestReport& report, const juce::File& outDir)
                       juce::String (juce::Decibels::gainToDecibels (late / juce::jmax (1.0e-6f, early)), 1) + " dB");
     }
 
-    // Long decays at the extremes of brightness and pitch, with and without
-    // the damper moving the resonances about: the feedback may
-    // exceed 1.0 to compensate the loop filter, so make sure nothing grows.
+    // Loop feedback can exceed 1 to compensate the loop filter: nothing may grow at the extremes.
     for (const float brightness : { 200.0f, 20000.0f })
         for (const float damperPos : { 0.0f, 0.17f, 0.5f })
         for (const int note : { 24, 60, 96, 108 })
@@ -116,13 +114,13 @@ void testHoldAndStability (TestReport& report, const juce::File& outDir)
         }
 }
 
+/** Release is a T60: half-way through a 1 s release the string is ~30 dB down (+/-6 dB). */
 void testReleaseTime (TestReport& report, const juce::File& outDir)
 {
     report.section ("1e. Release time matches the label");
     using namespace pluck::ParamID;
 
-    // Release is a T60: after the release time the string should be 60 dB down,
-    // so 30 dB down half-way. Measured on peak and RMS per 100 ms window.
+    // RMS over 100 ms windows.
     for (const int note : { 45, 57, 69, 81, 93 })
     {
         ChordaAudioProcessor processor;
@@ -152,6 +150,7 @@ void testReleaseTime (TestReport& report, const juce::File& outDir)
     }
 }
 
+/** Sustain off lets a 0.4 s decay drop over 40 dB; full sustain holds within 6 dB. */
 void testSustainAndDecay (TestReport& report, const juce::File& outDir)
 {
     report.section ("1c. Sustain holds the string, decay lets it go");
@@ -183,13 +182,12 @@ void testSustainAndDecay (TestReport& report, const juce::File& outDir)
                   juce::String (juce::Decibels::gainToDecibels (heldRatio), 1) + " dB");
 }
 
+/** E2 after a 3 ms noise pluck: the period (~585 samples) exceeds the block, so the loop
+    output is still zero when the excitation ends and the voice must not be freed. */
 void testLowNotesSurviveShortPlucks (TestReport& report, const juce::File& outDir)
 {
     report.section ("1d. Low notes with a short pluck");
 
-    // A 3 ms noise pluck on E2: the period (about 585 samples) is longer than
-    // the block, so the loop output is still zero when the excitation ends.
-    // The voice must wait for the string, not declare it silent.
     ChordaAudioProcessor processor;
     makeDryTestPatch (processor);
     setParameter (processor, pluck::ParamID::exciterTone, pluck::toneNoise);
@@ -209,21 +207,14 @@ void testLowNotesSurviveShortPlucks (TestReport& report, const juce::File& outDi
         profile += juce::String (peakBetween (audio, seconds (0.1 * w), seconds (0.1 * (w + 1))), 4) + " ";
     std::cout << "    level per 100 ms: " << profile << std::endl;
     report.check (early > 1.0e-3f, "E2 sounds after a 3 ms pluck", "peak " + juce::String (early, 4));
-    // The peak keeps falling for a while even at full sustain: the pluck is a
-    // pulse whose harmonics die in the loop filter while the fundamental is
-    // held (it loses well under 1 dB here). So ask for "clearly still
-    // sounding", not "same peak". A 3 ms noise burst is also shorter than one
-    // period of E2, so how much of it lands on the string's resonances is
-    // luck: the level of a single pluck varies by several dB from one to the
-    // next, and the threshold has to cover that.
+    // Loose threshold: harmonics still decay in the loop filter at full sustain, and a
+    // random 3 ms burst (shorter than one period) varies by several dB between renders.
     report.check (late > early * 0.3f, "E2 is still held at full sustain 1.2 s later",
                   juce::String (juce::Decibels::gainToDecibels (late / juce::jmax (1.0e-6f, early)), 1) + " dB");
 }
 
-/** A note held at full sustain must stay a string: quiet above the Brightness
-    cutoff, free of the ticking that a frozen, undamped excitation causes, and
-    steady in level. The noise exciter is the demanding case, because it is the
-    one that puts energy into every partial the loop can carry. */
+/** A note at full sustain stays clean: little energy above 5 kHz, no ticking, steady level.
+    Uses the default noise exciter, which excites every partial the loop can carry. */
 void testHeldNoteStaysClean (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
@@ -240,8 +231,7 @@ void testHeldNoteStaysClean (TestReport& report, const juce::File& outDir)
         const auto name = juce::String ("note ") + juce::String (note);
         report.check (allFinite (audio), name + ": the held note stays finite");
 
-        // Energy above 5 kHz, over the last second. Undamped excitation shows
-        // up here: the string itself has nothing left up there by then.
+        // Energy above 5 kHz in the last second: the string has none left there, so any is undamped excitation.
         const auto* samples = audio.getReadPointer (0);
         constexpr int order = 15, fftSize = 1 << order;
         juce::dsp::FFT fft (order);
@@ -264,7 +254,7 @@ void testHeldNoteStaysClean (TestReport& report, const juce::File& outDir)
         report.check (highPercent < 1.0f, name + ": less than 1 % of the held tone is above 5 kHz",
                       juce::String (highPercent, 2) + " %");
 
-        // Sample-to-sample roughness: a ticking string has sharp corners.
+        // Peak second difference relative to RMS: ticking shows as sharp corners.
         float worst = 0.0f, energy = 0.0f;
         const auto from = seconds (2.0), to = seconds (6.0);
         for (int i = from; i < to; ++i)
@@ -276,8 +266,7 @@ void testHeldNoteStaysClean (TestReport& report, const juce::File& outDir)
         report.check (roughness < 0.6f, name + ": the held tone has no sharp corners",
                       "peak curvature " + juce::String (roughness, 2) + " x RMS");
 
-        // And it really holds. Measured as RMS: a noise pluck's partials sit at
-        // random phases, so its peaks wander while its energy holds still.
+        // RMS, not peak: noise-pluck partials have random phases, so peaks wander while energy holds.
         const auto early = audio.getRMSLevel (0, seconds (2.0), seconds (0.5));
         const auto late  = audio.getRMSLevel (0, seconds (5.5), seconds (0.5));
         report.check (late > early * 0.7f, name + ": the level is still there 3.5 s later",
@@ -285,8 +274,7 @@ void testHeldNoteStaysClean (TestReport& report, const juce::File& outDir)
     }
 }
 
-/** The envelope holds with the damper on, and so does the level: the damper
-    is a filter after the string, with its loss made up. */
+/** Decay and release keep their rates with the damper on, and the damper's make-up gain keeps the level. */
 void testDamperKeepsTheEnvelope (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
@@ -307,10 +295,8 @@ void testDamperKeepsTheEnvelope (TestReport& report, const juce::File& outDir)
         return audio;
     };
 
-    // Decay 2 s is 30 dB a second: measured once the touched partials have
-    // gone, from 0.4 s to 1.4 s, on the partials the finger leaves alone (at
-    // a third, the third partial and its multiples, which the square has and
-    // the pick at 20 % does not cancel).
+    // Decay 2 s is 30 dB/s, measured 0.4 to 1.4 s once the damped partials have gone. A damper at 1/3
+    // leaves partial 3 and its multiples, which the square has and the 20 % pick does not cancel.
     for (const auto& [position, pressure, name] : { std::make_tuple (0.0f, 0.6f, juce::String ("no damper")),
                                                     std::make_tuple (1.0f / 3.0f, 0.6f, juce::String ("damper at a third")),
                                                     std::make_tuple (0.5f, 1.0f, juce::String ("damper at the middle, full pressure")) })
@@ -332,8 +318,7 @@ void testDamperKeepsTheEnvelope (TestReport& report, const juce::File& outDir)
                       juce::String (releaseDb, 1) + " dB");
     }
 
-    // One level across the damper: the make-up puts back what the filter
-    // takes, wherever the finger is and however hard it presses.
+    // Make-up gain: within 3 dB of undamped at every position and pressure, without overshooting the pluck.
     {
         auto loudnessOf = [&] (float position, float pressure)
         {
@@ -363,9 +348,7 @@ void testDamperKeepsTheEnvelope (TestReport& report, const juce::File& outDir)
                       "highest peak " + juce::String (juce::Decibels::gainToDecibels (worstPeak), 1) + " dB against undamped");
     }
 
-    // Pressure is how deep the cut is: at the middle the fundamental has no
-    // node and the octave has one, so under a firmer finger the octave stands
-    // far further above the fundamental.
+    // At the middle the fundamental is damped and the octave has a node: more pressure raises octave over fundamental.
     {
         const auto f0 = 440.0f * std::pow (2.0f, (45.0f - 69.0f) / 12.0f);
         const auto light = renderWith (0.5f, 0.2f, 0.5f, "middle_light");
@@ -378,8 +361,7 @@ void testDamperKeepsTheEnvelope (TestReport& report, const juce::File& outDir)
     }
 }
 
-/** A held note must not click: not when it starts to hold, not on the stereo
-    widener's cycle, not ever. */
+/** A held note does not click: at the widener's sweep wrap or at the transition into hold. */
 void testHeldNotesDoNotClick (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
@@ -395,7 +377,7 @@ void testHeldNotesDoNotClick (TestReport& report, const juce::File& outDir)
         return audio;
     };
 
-    // The widener's slow sweep wraps every 3.2 s; its shimmer used to jump there.
+    // The widener's sweep wraps every 3.2 s.
     {
         const auto audio = renderHeld (57, 1.0f, 1.0f, "wide");
         const auto clicks = countClicks (audio, seconds (0.5), seconds (7.0));
@@ -403,7 +385,7 @@ void testHeldNotesDoNotClick (TestReport& report, const juce::File& outDir)
                       juce::String (clicks) + " clicks in 6.5 s");
     }
 
-    // The moment a note starts to hold used to retune the loop in one jump.
+    // Transition into hold at several sustain settings.
     for (const auto& [note, sustain] : { std::pair { 57, 0.5f }, std::pair { 45, 0.7f }, std::pair { 69, 0.3f } })
     {
         const auto audio = renderHeld (note, sustain, 0.0f, "hold_" + juce::String (note));

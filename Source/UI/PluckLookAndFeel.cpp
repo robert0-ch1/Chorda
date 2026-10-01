@@ -7,7 +7,7 @@
 */
 
 #include "PluckLookAndFeel.h"
-#include "BinaryData.h"   // the embedded Space Grotesk typeface (Projucer or CMake generated)
+#include "BinaryData.h"   // embedded title typeface
 
 namespace pluck::ui
 {
@@ -16,9 +16,8 @@ namespace
 {
     constexpr float radius = 4.0f;
 
-    /** The typefaces, resolved once and shared. Bagnard (embedded) is the
-        title; everything else is the operating system's own UI face, SF Pro
-        on macOS, which may not be embedded and so is asked of the OS. */
+    /** Typefaces resolved once: embedded Bagnard for the title, the system
+        UI face (SF Pro on macOS, not redistributable) for everything else. */
     struct Typefaces
     {
         Typefaces()
@@ -31,7 +30,7 @@ namespace
         static juce::Typeface::Ptr systemFace (const juce::String& style)
         {
            #if JUCE_MAC
-            // The system family is hidden behind this name; CoreText matches it by style.
+            // Private CoreText name for the system UI family, matched by style.
             juce::Font f (juce::FontOptions (".AppleSystemUIFont", style, 12.0f));
             if (auto face = f.getTypefacePtr(); face != nullptr && face->getName().isNotEmpty() && ! face->getName().contains ("Lucida"))
                 return face;
@@ -60,9 +59,9 @@ namespace fonts
 {
     juce::Font title()   { return font (typefaces().display, 22.0f); }
     juce::Font name()    { return font (typefaces().medium,  12.5f); }
-    juce::Font caption() { return font (typefaces().medium,  10.0f).withExtraKerningFactor (0.14f); }   // small tracked capitals
+    juce::Font caption() { return font (typefaces().medium,  10.0f).withExtraKerningFactor (0.14f); }
     juce::Font value()   { return font (typefaces().regular, 11.0f); }
-    juce::Font text()    { return font (typefaces().regular, 12.0f); }   // preset names, menus, dialogs
+    juce::Font text()    { return font (typefaces().regular, 12.0f); }
 
     juce::String describe()
     {
@@ -112,8 +111,7 @@ void PluckLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int wi
                                          float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
                                          juce::Slider& slider)
 {
-    // A light disc with a hairline rim, a faint range track just inside the
-    // rim, the swept part of it in ink, and one ink pointer.
+    // Light disc with hairline rim, inner range track with the swept part in ink, ink pointer.
     const auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat().reduced (2.0f);
     const auto radiusPx = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f;
     const auto centre = bounds.getCentre();
@@ -158,7 +156,6 @@ void PluckLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, b
     g.setColour (box.hasKeyboardFocus (true) ? colours::mid : colours::hairline);
     g.drawRoundedRectangle (bounds, radius, 1.0f);
 
-    // Chevron at the right
     const auto cx = bounds.getRight() - 14.0f;
     const auto cy = bounds.getCentreY();
     juce::Path chevron;
@@ -249,7 +246,7 @@ void PluckLookAndFeel::drawPopupMenuItem (juce::Graphics& g, const juce::Rectang
 
     if (isTicked)
     {
-        // A small filled dot marks the current preset
+        // Dot marks the current preset
         g.setColour (colours::ink);
         g.fillEllipse (juce::Rectangle<float> (5.0f, 5.0f).withCentre ({ (float) area.getX() + 8.0f, (float) area.getCentreY() }));
     }

@@ -3,9 +3,8 @@
 
     KarplusTuning.cpp
 
-    The string loop: delay length and fractional tuning, the loop filters,
-    and the feedback that sets how fast the string decays.
-    Part of KarplusVoice; everything here runs on the audio thread.
+    String loop: delay length and fractional tuning, loop filters, and the
+    feedback gain that sets the decay. Audio thread.
 
   ==============================================================================
 */
@@ -24,8 +23,7 @@ float KarplusVoice::readDelayLine() noexcept
     if (index < 0)
         index += (int) delayLine.size();
 
-    // First-order allpass supplies the fractional part of the delay:
-    // y[n] = C x[n] + x[n-1] - C y[n-1]
+    // Fractional delay, first-order allpass: y[n] = C x[n] + x[n-1] - C y[n-1]
     const auto x = delayLine[(size_t) index];
     const auto y = allpassCoeff * x + allpassX1 - allpassCoeff * allpassY1;
     allpassX1 = x;
@@ -35,18 +33,15 @@ float KarplusVoice::readDelayLine() noexcept
 
 void KarplusVoice::updateDelayInterpolator() noexcept
 {
-    // Split the delay into an integer tap and a fractional part in [0.5, 1.5),
-    // the range where the allpass approximation is most accurate.
+    // Fractional part kept in [0.5, 1.5), where the allpass is most accurate.
     const auto previousTap = integerDelay;
     integerDelay = juce::jmax (1, (int) std::floor (loopDelaySamples - 0.5f));
     const auto fraction = loopDelaySamples - (float) integerDelay;
     allpassCoeff = (1.0f - fraction) / (1.0f + fraction);
 
-    // When the tap moves by a sample (a retune: glide, the hold easing in),
-    // the allpass's memory belongs to the old tap, and carrying it over is a
-    // click. Give it what it would have held at the new one: the last input
-    // it would have read, and the last output it would have made, which is
-    // the string read at the full fractional delay a sample ago.
+    // When the integer tap moves, reinitialise the allpass state for the new
+    // tap (last input, and last output approximated by linear interpolation)
+    // to avoid a click.
     if (integerDelay != previousTap && ! delayLine.empty())
     {
         const auto size = (int) delayLine.size();
@@ -66,18 +61,16 @@ void KarplusVoice::updateLoopFilters() noexcept
 {
     const auto sr = (float) getSampleRate();
 
-    // One-pole low-pass, never closer than minimumBrightnessRatio to f0. Velocity
-    // and the mod wheel both push the cutoff around the knob's value.
+    // One-pole low-pass, cutoff modulated by velocity and mod wheel, at least
+    // minimumBrightnessRatio x f0.
     const auto modulated = params.brightnessHz * velocityBrightness
                          * std::pow (2.0f, modWheelBrightnessOctaves * params.modWheel);
     const auto cutoff = juce::jlimit (20.0f, 0.49f * sr, juce::jmax (modulated, minimumBrightnessRatio * frequencyHz));
     lowPassCoeff = std::exp (-twoPi * cutoff / sr);
 
-    // Below the reference note, run the loop low-pass as N stages whose
-    // loss at the cutoff adds up to (reference / f0) times what one stage
-    // loses there: per second, the same as at the reference. At and above it,
-    // one stage, exactly as before. The exciter keeps the single stage, so
-    // the pluck's level is unchanged.
+    // Below brightnessReferenceHz, use N stages with a total loss at the cutoff
+    // of (reference / f0) times one stage, so loss per second matches the
+    // reference. One stage at and above it.
     const auto trips = brightnessReferenceHz / frequencyHz;
     const auto previousStages = loopStages;
     if (trips <= 1.0f)
@@ -88,12 +81,12 @@ void KarplusVoice::updateLoopFilters() noexcept
     else
     {
         loopStages = juce::jlimit (1, maximumLoopStages, (int) std::ceil (trips));
-        const auto singleLossDb = -10.0f * std::log10 (std::norm (lowPassResponse (cutoff)));   // one stage at the cutoff
+        const auto singleLossDb = -10.0f * std::log10 (std::norm (lowPassResponse (cutoff)));   // one stage, at the cutoff
         loopStageCoeff = onePoleCoeffForLoss (twoPi * cutoff / sr,
                                               singleLossDb * juce::jmin (trips, (float) maximumLoopStages) / (float) loopStages);
     }
 
-    // Holding: glide towards the light low-pass (see holdLossDbPerSecond).
+    // While holding, blend towards the light low-pass (see holdLossDbPerSecond).
     if (holdBlend > 0.0f)
     {
         const auto holdCoeff = onePoleCoeffForLoss (twoPi * cutoff / sr,
@@ -101,23 +94,20 @@ void KarplusVoice::updateLoopFilters() noexcept
         loopStageCoeff += (holdCoeff - loopStageCoeff) * holdBlend;
     }
 
-    // Stages brought in by a glide start from where the last one is, not from silence.
+    // New stages start from the last stage's state, not from zero.
     for (int k = previousStages; k < loopStages; ++k)
         loopStageState[(size_t) k] = loopStageState[(size_t) juce::jmax (0, previousStages - 1)];
 
-    // One-pole high-pass a long way below f0.
     highPassCutoffHz = frequencyHz * loopHighPassRatio;
     highPassCoeff    = 1.0f - twoPi * highPassCutoffHz / sr;
 
-    // Damper filter: the delay is a fraction of the period, so it follows
-    // the note (and a glide).
+    // Damper delay is a fraction of the period, so it tracks pitch.
     updateDamperFilter();
 }
 
 std::complex<float> KarplusVoice::smoothLoopResponse (float hz) const noexcept
 {
-    // The smooth part of one trip round the loop, apart from the pure delay:
-    // the low-pass and the high-pass. (The fractional allpass is unity.)
+    // Loop response excluding the pure delay and the unity-gain allpass.
     const auto w = twoPi * hz / (float) getSampleRate();
     const auto z = std::polar (1.0f, -w);                                  // e^(-jw)
 
@@ -130,12 +120,9 @@ std::complex<float> KarplusVoice::smoothLoopResponse (float hz) const noexcept
 
 float KarplusVoice::highestResonanceGain() const noexcept
 {
-    // Stability needs the loop gain below 1 at every resonance. The tuning
-    // pins the first resonance to f0 exactly, and the others sit near its
-    // multiples, never below 1.85 f0 (a margin kept from when the damper
-    // was in the loop and could move them). There is also the spurious low
-    // resonance where the high-pass's phase lead lines up with the delay.
-    // Bound the loop response (low-pass and high-pass) at those places.
+    // Peak loop filter gain over the possible resonances: f0, the low
+    // resonance from the high-pass phase lead, and 1.85 f0 to Nyquist
+    // (margin below 2 f0). Used for the stability cap.
     const auto sr = (float) getSampleRate();
     const auto nyquist = 0.5f * sr;
 
@@ -150,8 +137,7 @@ float KarplusVoice::highestResonanceGain() const noexcept
     auto peak = juce::jmax (smoothGain (frequencyHz),
                             smoothGain (std::sqrt (highPassCutoffHz * frequencyHz / twoPi)));
 
-    // Everything from 1.85 f0 up to Nyquist, on a log grid. The product of a
-    // rising high-pass and a falling low-pass is smooth, so 24 points suffice.
+    // Log grid; the HP x LP product is smooth, so 24 points suffice.
     constexpr int points = 24;
     const auto lowest = juce::jmin (1.85f * frequencyHz, nyquist * 0.999f);
     for (int i = 0; i <= points; ++i)
@@ -172,9 +158,7 @@ void KarplusVoice::updateTuning() noexcept
     const auto note = (float) soundingNote + (float) params.transposeSemitones + pitchBend * pitchBendRangeSemitones;
     targetFrequencyHz = 440.0f * std::pow (2.0f, (note - 69.0f) / 12.0f);
 
-    // While gliding the string sits where the glide has reached, not where the
-    // key says; the glide's own target is kept in step with the key, so bend
-    // and the transposer still work in the middle of one.
+    // While gliding, the glide target follows bend and transpose.
     if (gliding)
     {
         glideTargetLog = std::log2 (targetFrequencyHz);
@@ -185,27 +169,20 @@ void KarplusVoice::updateTuning() noexcept
         frequencyHz = targetFrequencyHz;
     }
 
-    // The delay line holds a period down to lowestFrequencyHz. Below that (an
-    // octave or two down from the bottom of the keyboard) the loop could not
-    // be as long as asked, every filter sum would be done for a pitch it is
-    // not playing, and the stability cap with them. Hold the pitch there.
+    // Clamp to what the delay line can hold, so filter and cap maths match the played pitch.
     frequencyHz = juce::jlimit (lowestFrequencyHz * 1.02f, 0.45f * sr, frequencyHz);
 
-    periodSamples = sr / frequencyHz;                     // total loop length we want, in samples
+    periodSamples = sr / frequencyHz;                     // nominal loop length, in samples
 
     updateLoopFilters();
 
-    // The loop filters delay the fundamental; subtract that from the delay
-    // line length or notes play out of tune.
+    // Subtract the loop filters' phase delay at f0 from the delay length.
     const auto w = twoPi * frequencyHz / sr;
     const auto response = smoothLoopResponse (frequencyHz);
     const auto phaseDelay = -std::arg (response) / w;                     // samples; negative = advance
 
-    // The loop length glides to its new value sample by sample (see
-    // renderSample) rather than jumping there. A retune arrives once a block
-    // at best (a pitch-wheel message, a glide step), and reading a delay line
-    // whose length steps is a zipper: under a smooth pitch bend that put the
-    // energy above 4 kHz at -45 dB where the held note has -110.
+    // renderSample() glides the delay towards this target; stepping it on
+    // block-rate retunes would cause zipper noise.
     loopDelayTarget = juce::jlimit (2.0f, (float) delayLine.size() - 3.0f, periodSamples - phaseDelay);
     if (snapLoopDelay)
     {
@@ -213,18 +190,13 @@ void KarplusVoice::updateTuning() noexcept
         updateDelayInterpolator();
     }
 
-    // What the loop does to the fundamental, and how far the feedback may go.
     loopFilterGainAtF0 = juce::jmax (std::abs (response), 1.0e-3f);
     feedbackCap        = maximumLoopGain / highestResonanceGain();
 
-    // The sub must follow the string's real period, not the nominal one.
+    // Sub follows the actual loop period, not the nominal one.
     subPhaseStep = 0.5f / juce::jmax (2.0f, actualPeriodSamples());
 
-    // A long pluck still feeding the string when the pitch moves (a glide, a
-    // bend, an octave change) has to follow it: the drive is per period, and
-    // the same drive at a pitch six octaves up lands on 64 times as many
-    // periods and piles up (measured: 30x full scale on a glide up during a
-    // long attack).
+    // Exciter drive is per period, so rescale it if the pitch moves during the attack.
     if (! exciterFinished && attackSamplesLeft > 0)
         updateExcitationDrive();
 }
@@ -246,10 +218,8 @@ std::complex<float> KarplusVoice::lowPassResponse (float hz) const noexcept
 
 float KarplusVoice::actualPeriodSamples() const noexcept
 {
-    // The delay the signal really sees on one trip: the integer tap, plus the
-    // fraction the allpass supplies at f0 (which is not quite the fraction it
-    // was designed for), plus the phase delay of the loop filters. Each term
-    // is small enough on its own that the phase never wraps.
+    // Integer tap + allpass phase delay at f0 + loop filter phase delay.
+    // Each phase term is small enough not to wrap.
     const auto w = twoPi * frequencyHz / (float) getSampleRate();
     if (w <= 0.0f)
         return periodSamples;
@@ -262,10 +232,8 @@ float KarplusVoice::actualPeriodSamples() const noexcept
 
 float KarplusVoice::feedbackForT60 (float seconds) const noexcept
 {
-    // After `seconds` the string should have fallen by 60 dB (a factor of
-    // 0.001). There are seconds * f0 round trips in that time, so each one may
-    // keep 0.001^(1 / (T60 * f0)). The loop filters take their own share, so
-    // divide that out; the cap keeps every resonance below unity gain.
+    // -60 dB over T60 * f0 round trips: g = 0.001^(1 / (T60 f0)) / |H(f0)|,
+    // limited by the stability cap.
     const auto periodsInT60 = juce::jmax (1.0f, seconds * frequencyHz);
     const auto gain = std::pow (0.001f, 1.0f / periodsInT60) / loopFilterGainAtF0;
     return juce::jlimit (0.0f, feedbackCap, gain);

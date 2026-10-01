@@ -33,10 +33,9 @@ PresetManager::~PresetManager()
 //==============================================================================
 juce::File PresetManager::getUserPresetDirectory()
 {
-    // JucePlugin_Manufacturer and JucePlugin_Name come from the build system,
-    // so the folder is named after whatever the project is called.
+    // Folder names come from the build system's JucePlugin_Manufacturer and JucePlugin_Name.
    #if JUCE_MAC
-    // The conventional location on macOS, shared with Logic's own presets.
+    // Standard macOS audio preset location.
     return juce::File::getSpecialLocation (juce::File::userHomeDirectory)
                .getChildFile ("Library/Audio/Presets")
                .getChildFile (JucePlugin_Manufacturer)
@@ -155,7 +154,7 @@ bool PresetManager::loadUserPreset (const juce::String& name)
     for (auto* element : xml->getChildWithTagNameIterator (xmlParamTag))
         values[element->getStringAttribute ("id")] = (float) element->getDoubleAttribute ("value");
 
-    // The file name wins over the stored attribute, so a renamed file shows its new name.
+    // Use the file name, not the stored attribute, so renamed files show their new name.
     applyValues (values, file.getFileNameWithoutExtension());
     return true;
 }
@@ -174,7 +173,7 @@ bool PresetManager::deleteUserPreset (const juce::String& name)
 
     if (wasCurrent)
     {
-        // The parameters are still what they were; only the name is gone.
+        // Values are unchanged; fall back to the first factory name and mark as modified.
         setCurrentPresetName (getFactoryPresetName (0));
         modified.store (true);
     }
@@ -250,8 +249,7 @@ void PresetManager::stateRestored()
 //==============================================================================
 void PresetManager::applyValues (const ValueMap& values, const juce::String& presetName)
 {
-    // parameterChanged() fires synchronously for every setValueNotifyingHost()
-    // below; the flag tells it to leave the modified state alone.
+    // parameterChanged() fires synchronously from setValueNotifyingHost(); suppress the modified flag.
     applyingPreset = true;
 
     for (const auto& id : ParamID::all)
@@ -285,7 +283,6 @@ juce::File PresetManager::fileForPreset (const juce::String& name)
 
 juce::String PresetManager::sanitiseName (const juce::String& name)
 {
-    // Strip anything that is not safe in a file name, then trim.
     return juce::File::createLegalFileName (name).trim();
 }
 

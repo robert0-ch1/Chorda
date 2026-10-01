@@ -3,9 +3,7 @@
 
     IconButton.h
 
-    A square bordered button showing one of a few line icons (save, save as,
-    delete) instead of text. Drawn in the same ink and hairline as the rest
-    of the interface; the tooltip carries the words.
+    Square bordered button with a drawn line icon (save, save as, delete).
 
   ==============================================================================
 */
@@ -23,7 +21,7 @@ class IconButton final : public juce::Button
 public:
     enum class Icon { save, saveAs, trash };
 
-    /** @param onDark  true for the header: dark field, white icon */
+    /** @param onDark  use the dark header style */
     IconButton (const juce::String& name, Icon iconToShow, bool onDark = false)
         : juce::Button (name), icon (iconToShow), dark (onDark)
     {
@@ -50,7 +48,7 @@ public:
             g.drawRoundedRectangle (bounds, 4.0f, 1.0f);
         }
 
-        // The icon lives in a 14 x 14 box in the middle
+        // 14 x 14 icon box, centred
         const auto box = juce::Rectangle<float> (14.0f, 14.0f).withCentre (bounds.getCentre());
         const auto inkColour = dark ? (isEnabled() ? colours::white : colours::headerDim)
                                     : (isEnabled() ? colours::ink   : colours::mid);
@@ -69,8 +67,7 @@ private:
             case Icon::save:
             case Icon::saveAs:
             {
-                // A floppy disk: outer square with a clipped corner, the label
-                // slot at the top, the shutter at the bottom.
+                // Floppy disk: clipped corner, label slot, shutter.
                 juce::Path disk;
                 disk.startNewSubPath (x, y);
                 disk.lineTo (x + w - 3.5f, y);
@@ -85,7 +82,7 @@ private:
 
                 if (icon == Icon::saveAs)
                 {
-                    // A small plus badge over the corner
+                    // Plus badge
                     const auto badge = juce::Rectangle<float> (9.0f, 9.0f).withCentre ({ x + w - 1.0f, y + h - 1.0f });
                     g.setColour (paper);
                     g.fillEllipse (badge.expanded (1.5f));
@@ -98,7 +95,7 @@ private:
 
             case Icon::trash:
             {
-                // A bin: lid with a handle, a slightly tapered body, two slots
+                // Bin: lid, handle, tapered body, two slots
                 g.drawLine (x, y + 2.5f, x + w, y + 2.5f, 1.3f);
                 g.drawLine (x + w * 0.35f, y + 0.6f, x + w * 0.65f, y + 0.6f, 1.3f);
 

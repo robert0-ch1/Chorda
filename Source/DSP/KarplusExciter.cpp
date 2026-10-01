@@ -3,9 +3,8 @@
 
     KarplusExciter.cpp
 
-    The pluck: the three waveforms, how hard each drives the string, and the
-    filter that band-limits it to what the string can carry.
-    Part of KarplusVoice; everything here runs on the audio thread.
+    Exciter: sine/square/noise waveforms, their drive gains, the band-limiting
+    filter and the pick-position comb. Audio thread.
 
   ==============================================================================
 */
@@ -20,37 +19,14 @@ using namespace voice;
 
 void KarplusVoice::prepareExcitation() noexcept
 {
-    // Everything about the pluck that depends on the pitch the string is at
-    // when it is plucked. A glide starts the string at the last note, not at
-    // this one, so it is worked out again then (see glideFromFrequency).
-    //
+    // Pitch-dependent exciter setup. Redone by glideFromFrequency() for the glide start pitch.
     prepareExciterFilter();
-    //
-    // The loop accumulates whatever is fed in, so a long excitation would get
-    // louder and louder. Scale it so the resulting level stays roughly constant:
-    // noise adds up in power (sqrt), a waveform at f0 adds up coherently.
     updateExciterMix();
-
-    // A long excitation keeps adding to a loop that is already ringing, so the
-    // longer it is the less each sample may contribute. A waveform at f0 adds
-    // up in step, noise adds up in power.
-    //
-    // The excitation is also band-limited by the same low-pass as the loop,
-    // because a real pluck cannot put energy into partials the string will not
-    // carry. (Without this the noise exciter fills the loop up to Nyquist, and
-    // a held note, which stops damping the string, would ring on that for
-    // ever.) That costs a tone and a noise burst different amounts, so each is
-    // given back its own. The low-pass is linear, so handing each waveform its
-    // own drive before the filter comes to exactly the same thing as the single
-    // gain after it that this used to be.
     updateExcitationDrive();
 
-    // Pick position: a comb filter whose notch spacing matches the distance
-    // between the pluck point and the bridge, over the whole string. Past the
-    // middle it notches the same harmonics as the mirrored point and flips
-    // the phases of the even ones, as a real string does: the two waves the
-    // pluck sends out reach the bridge in the other order. The pick is never
-    // off, so the delay is at least one sample even for the highest notes.
+    // Pick comb with delay pickPosition x period. Past the middle it notches
+    // the mirrored harmonics with even ones phase-flipped, as on a real string.
+    // At least one sample, so the pick is never bypassed.
     combDelaySamples = juce::jlimit (1, (int) exciterHistory.size() - 1,
                                      juce::roundToInt (params.pickPosition * periodSamples));
     combTailLeft = combDelaySamples;
@@ -58,7 +34,9 @@ void KarplusVoice::prepareExcitation() noexcept
 
 void KarplusVoice::updateExcitationDrive() noexcept
 {
-    // How hard each waveform drives the string, for the pitch it is at now.
+    // A long excitation keeps adding to a ringing loop: tonal input sums
+    // coherently (1 / periods), noise in power (1 / sqrt(periods)). The tonal
+    // gain also makes up the band-limit loss at f0.
     const auto periodsInAttack = juce::jmax (1.0f, (float) attackSamplesTotal / periodSamples);
 
     const auto z = std::polar (1.0f, -twoPi * frequencyHz / (float) getSampleRate());
@@ -71,19 +49,14 @@ void KarplusVoice::updateExcitationDrive() noexcept
 
 void KarplusVoice::prepareExciterFilter() noexcept
 {
-    // The pluck is band-limited by as much as one trip round the loop takes
-    // away: the same stages, the same coefficient. A string cannot carry what
-    // its loop strips off, and on a low note, where the loop is a cascade,
-    // feeding it in anyway was a hard click once a period until the slow
-    // trips wore it down: the harshness of low noise plucks. At and above
-    // the reference note this is the one stage it always was.
+    // Band-limit the excitation with the same cascade as one loop trip, so
+    // it carries no energy the loop would strip off. Otherwise noise up to
+    // Nyquist circulates, which is harsh on low notes and rings while holding.
     exciterStages     = loopStages;
     exciterStageCoeff = loopStageCoeff;
     exciterStageState.fill (0.0f);
 
-    // Make-up for equal noise power through the cascade. The energy of K
-    // identical one-poles has a closed form, so this costs K steps, not a
-    // summed impulse response (that was up to 640k operations per low note).
+    // Make-up for equal noise power through the cascade, in closed form (O(K)).
     exciterNoiseMakeup = (float) (1.0 / std::sqrt (cascadeEnergy (exciterStages, (double) exciterStageCoeff)));
 }
 
@@ -118,7 +91,7 @@ float KarplusVoice::nextExciterSample() noexcept
         if (exciterNoiseGain > 0.0f)
             raw += exciterNoiseGain * (random.nextFloat() * 2.0f - 1.0f) * exciterNoiseDrive;
 
-        // Raised-cosine window over the attack: starts and ends without a step.
+        // Raised-cosine window over the attack.
         const auto progress = 1.0f - (float) attackSamplesLeft / (float) attackSamplesTotal;
         const auto window   = 0.5f - 0.5f * std::cos (twoPi * progress);
         raw *= window;
@@ -129,8 +102,7 @@ float KarplusVoice::nextExciterSample() noexcept
             exciterPhase -= 1.0f;
     }
 
-    // Band-limit: one pole, the same cutoff the loop uses. Each waveform has
-    // already been given the gain that makes up for what this takes.
+    // Band-limit; the drives already compensate its loss.
     for (int k = 0; k < exciterStages; ++k)
     {
         auto& state = exciterStageState[(size_t) k];
@@ -146,9 +118,7 @@ float KarplusVoice::nextExciterSample() noexcept
         return raw;
     }
 
-    // Pick-position comb: subtract the excitation delayed by the round trip
-    // from the pluck point to the bridge. Notches fall on the harmonics that
-    // have a node at the pick position, just like on a real guitar.
+    // Pick comb x[n] - x[n - D]: notches the harmonics with a node at the pick.
     const auto size = (int) exciterHistory.size();
     auto readIndex = exciterWriteIndex - combDelaySamples;
     if (readIndex < 0)
@@ -160,7 +130,7 @@ float KarplusVoice::nextExciterSample() noexcept
     if (++exciterWriteIndex >= size)
         exciterWriteIndex = 0;
 
-    // The delayed copy keeps arriving for combDelaySamples after the excitation ends.
+    // The comb outputs for combDelaySamples more after the attack ends.
     if (attackSamplesLeft == 0)
     {
         if (combTailLeft > 0)
@@ -174,12 +144,8 @@ float KarplusVoice::nextExciterSample() noexcept
 
 void KarplusVoice::updateExciterMix() noexcept
 {
-    // Tone runs sine -> square -> noise, crossfading each neighbouring pair.
-    // The two halves fade differently because the pairs are differently
-    // related: a sine and a square share a phase and add up, so a straight
-    // crossfade keeps the level even, while noise is unrelated to the square
-    // and the two add up in power, which wants an equal-power fade. Either way
-    // the ends of the knob are exactly the waveform they name.
+    // Tone: sine -> square -> noise. Sine and square are phase-coherent, so a
+    // linear crossfade; square and noise are uncorrelated, so equal power.
     const auto tone = juce::jlimit (0.0f, 1.0f, params.exciterTone);
 
     if (tone <= toneSquare)
@@ -194,15 +160,13 @@ void KarplusVoice::updateExciterMix() noexcept
         const auto t = (tone - toneSquare) / (toneNoise - toneSquare);
         const auto angle = t * 0.5f * juce::MathConstants<float>::pi;
         exciterSineGain   = 0.0f;
-        exciterSquareGain = t >= 1.0f ? 0.0f : std::cos (angle);   // exact at the end of the knob
+        exciterSquareGain = t >= 1.0f ? 0.0f : std::cos (angle);   // exact at the knob end
         exciterNoiseGain  = t >= 1.0f ? 1.0f : std::sin (angle);
     }
 
-    // Bring the two tones down to the noise burst's loudness (see
-    // sineExcessDb). Never up: a low sine on a short attack is quieter than
-    // the noise because it is shorter than one cycle, and boosting that would
-    // only hand the headroom back.
-    const auto note = 69.0f + 12.0f * std::log2 (juce::jmax (1.0f, frequencyHz) / 440.0f);   // the pitch it is plucked at
+    // Trim the tonal waveforms down to the noise loudness (see sineExcessDb).
+    // Never boost: a short low sine is quiet because it is under one cycle.
+    const auto note = 69.0f + 12.0f * std::log2 (juce::jmax (1.0f, frequencyHz) / 440.0f);   // pitch at pluck time
     auto trim = [note] (float excessDb, float perNote)
     {
         return juce::Decibels::decibelsToGain (-juce::jmax (0.0f, excessDb + perNote * (note - toneReferenceNote)));

@@ -3,12 +3,7 @@
 
     Parameters.h
 
-    Single source of truth for every automatable parameter in Chorda.
-
-    Parameter IDs are declared here as constants so that the processor, the
-    editor, the preset manager and the tests all refer to the same strings.
-    The layout builder (createParameterLayout) defines ranges, defaults and the
-    text shown by hosts, grouped in the same sections the UI uses.
+    Parameter IDs, ranges, defaults and value-to-text functions for Chorda.
 
   ==============================================================================
 */
@@ -21,45 +16,43 @@ namespace pluck
 {
 
 //==============================================================================
-/** Parameter identifiers. Keep these stable: they are stored in presets and
-    host sessions, so renaming one breaks every saved state.
-*/
+/** Parameter IDs. Stored in presets and host sessions: do not rename. */
 namespace ParamID
 {
-    // Exciter: how the string is set in motion
-    inline constexpr auto exciterTone     = "exciterTone";      // 0..1: sine -> square -> noise burst
-    inline constexpr auto exciterAttack   = "exciterAttack";    // ms: how long energy is fed into the string
-    inline constexpr auto exciterPosition = "exciterPosition";  // fraction of the string length, bridge to middle
+    // Exciter
+    inline constexpr auto exciterTone     = "exciterTone";      // 0..1: sine, square, noise
+    inline constexpr auto exciterAttack   = "exciterAttack";    // ms, excitation length
+    inline constexpr auto exciterPosition = "exciterPosition";  // 0..1, bridge to nut
 
-    // String: the Karplus-Strong loop and its damping over time
-    inline constexpr auto stringDecay      = "stringDecay";      // seconds: T60 while the key is held
-    inline constexpr auto stringSustain    = "stringSustain";    // 0..1: level at which the string stops losing energy
-    inline constexpr auto stringRelease    = "stringRelease";    // seconds: T60 after the key is released
-    inline constexpr auto stringBrightness = "stringBrightness"; // Hz: loop low-pass cutoff
-    inline constexpr auto stringDamper     = "stringDamper";     // 0..0.5: where a finger touches the string (0 = off)
-    inline constexpr auto stringDamperPressure = "stringDamperPressure"; // 0..1: how firmly the finger presses
-    inline constexpr auto stringSub        = "stringSub";        // 0..1: level of a sine one octave below, following the string
+    // String loop
+    inline constexpr auto stringDecay      = "stringDecay";      // s, T60 while held
+    inline constexpr auto stringSustain    = "stringSustain";    // 0..1, hold level, see sustainRangeDb
+    inline constexpr auto stringRelease    = "stringRelease";    // s, T60 after note-off
+    inline constexpr auto stringBrightness = "stringBrightness"; // Hz, loop low-pass cutoff
+    inline constexpr auto stringDamper     = "stringDamper";     // 0..1, finger position (0 = off)
+    inline constexpr auto stringDamperPressure = "stringDamperPressure"; // 0..1
+    inline constexpr auto stringSub        = "stringSub";        // 0..1, sine one octave down
 
     // Voices
     inline constexpr auto voiceMode   = "voiceMode";    // choice, see voiceModeNames
-    inline constexpr auto pitchGlide  = "pitchGlide";   // seconds to slide from the last note to this one
+    inline constexpr auto pitchGlide  = "pitchGlide";   // s
     inline constexpr auto pitchOctave = "pitchOctave";  // choice, see octaveNames
 
-    // LFOs: one moves the damper along the string, one presses it harder and softer
-    inline constexpr auto lfoAmount         = "lfoAmount";          // 0..1: position swing either side of where the damper is set
+    // LFOs: damper position and damper pressure
+    inline constexpr auto lfoAmount         = "lfoAmount";          // 0..1, bipolar around the set position
     inline constexpr auto lfoRate           = "lfoRate";            // Hz, or a note division when synced
-    inline constexpr auto lfoSync           = "lfoSync";            // bool: take the rate from the host tempo
-    inline constexpr auto lfoPressureAmount = "lfoPressureAmount";  // 0..1: pressure swing either side of where it is set
+    inline constexpr auto lfoSync           = "lfoSync";            // bool, follow host tempo
+    inline constexpr auto lfoPressureAmount = "lfoPressureAmount";  // 0..1, bipolar around the set pressure
     inline constexpr auto lfoPressureRate   = "lfoPressureRate";
     inline constexpr auto lfoPressureSync   = "lfoPressureSync";
 
     // Output
-    inline constexpr auto outputDrive     = "outputDrive";     // 0..1, valve-style saturation
-    inline constexpr auto outputWidth     = "outputWidth";     // 0..1, stereo ensemble width (0 = mono)
+    inline constexpr auto outputDrive     = "outputDrive";     // 0..1, saturation
+    inline constexpr auto outputWidth     = "outputWidth";     // 0..1, 0 = mono
     inline constexpr auto outputGain      = "outputGain";      // dB
-    inline constexpr auto outputReverb    = "outputReverb";    // 0..1, send into the room at the very end of the chain
+    inline constexpr auto outputReverb    = "outputReverb";    // 0..1, send level, last in chain
 
-    /** Every ID, in display order. Used by the preset manager to iterate. */
+    /** All IDs, in display order. */
     inline const juce::StringArray all
     {
         exciterTone, exciterAttack, exciterPosition,
@@ -70,28 +63,20 @@ namespace ParamID
     };
 }
 
-/** Where the three excitation waveforms sit on the Tone knob. Between them
-    the waveforms are crossfaded, and at either end the knob gives exactly the
-    waveform it names. */
+/** Tone knob anchor points; waveforms are crossfaded in between. */
 inline constexpr float toneSine   = 0.0f;
 inline constexpr float toneSquare = 0.5f;
 inline constexpr float toneNoise  = 1.0f;
 
 //==============================================================================
-/** Voice modes, in the same order as the voiceMode choice list: one string,
-    one string played legato, then polyphony limits.
-
-    Legato is mono with the string left ringing: a new key while another is
-    still down slides the string to it instead of plucking it again, which is
-    what Glide is for. */
+/** voiceMode choices: Mono, Legato, then polyphony limits. Legato is mono
+    without retrigger: an overlapping key glides the ringing string. */
 inline const juce::StringArray voiceModeNames { "Mono", "Legato", "2", "3", "4", "5", "6", "7", "8", "16", "32", "64" };
 
 inline constexpr int voiceModeMono   = 0;
 inline constexpr int voiceModeLegato = 1;
 
-/** Octave transposer, in the same order as the pitchOctave choice list, in
-    octaves. Only the names changed from the semitones they used to show: the
-    host stores the index, so saved sessions are unaffected. */
+/** pitchOctave choices, in octaves. */
 inline const juce::StringArray octaveNames { "-2", "-1", "0", "+1", "+2" };
 inline constexpr int octaveDefaultIndex = 2;
 
@@ -101,26 +86,22 @@ inline int semitonesForOctaveIndex (int index)
     return 12 * octaveNames[juce::jlimit (0, octaveNames.size() - 1, index)].getIntValue();
 }
 
-/** Velocity is mapped to level, and also to how the string is plucked:
-    a hard pluck is shorter and brighter. These are the ranges, as factors at
-    velocity 0 and velocity 1 (linear in between). */
-inline constexpr float velocityAttackFactorSoft   = 1.6f;   ///< soft pluck: longer excitation
+/** Velocity scaling of attack time and brightness, at velocity 0 and 1,
+    linear in between. A hard pluck is shorter and brighter. */
+inline constexpr float velocityAttackFactorSoft   = 1.6f;   ///< longer excitation
 inline constexpr float velocityAttackFactorHard   = 0.8f;
-inline constexpr float velocityBrightnessSoft     = 0.5f;   ///< soft pluck: darker
+inline constexpr float velocityBrightnessSoft     = 0.5f;   ///< darker
 inline constexpr float velocityBrightnessHard     = 1.25f;
 
-/** The two LFOs are bipolar, around where the damper is set. At full Amount
-    the position swings half the string either side, so it can reach the whole
-    string from anywhere, and the pressure half its range either side. */
+/** Bipolar LFO depth at full Amount. 0.5 lets the position reach the whole string. */
 inline constexpr float lfoPositionDepth = 0.5f;
 inline constexpr float lfoPressureDepth = 0.5f;
 
-/** The note divisions the LFO rate snaps to when it follows the host, in
-    beats per cycle, longest first, with their names. */
+/** Host-synced LFO divisions, in beats per cycle, longest first. */
 inline const std::array<float, 11> lfoDivisionBeats { 16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 2.0f / 3.0f, 0.5f, 1.0f / 3.0f, 0.25f, 1.0f / 6.0f, 0.125f };
 inline const std::array<const char*, 11> lfoDivisionNames { "4/1", "2/1", "1/1", "1/2", "1/4", "1/4T", "1/8", "1/8T", "1/16", "1/16T", "1/32" };
 
-/** The mod wheel raises Brightness by up to this many octaves. */
+/** Maximum mod wheel brightness boost, in octaves. */
 inline constexpr float modWheelBrightnessOctaves = 2.0f;
 
 /** Polyphony for a voiceMode index. */
@@ -131,37 +112,30 @@ inline int polyphonyForVoiceMode (int modeIndex)
     return voiceModeNames[juce::jlimit (0, voiceModeNames.size() - 1, modeIndex)].getIntValue();
 }
 
-/** Voices the synthesiser allocates: enough for the largest mode. */
+/** Allocated voices, enough for the largest mode. */
 inline constexpr int numVoices = 64;
 
-/** Pitch-bend range in semitones (applied symmetrically). */
+/** Pitch-bend range in semitones, symmetric. */
 inline constexpr float pitchBendRangeSemitones = 2.0f;
 
-/** The pick never sits exactly on the bridge: a string is always plucked
-    somewhere, and a pick position of zero would take the comb out of the
-    sound altogether, which no real instrument does. */
+/** Lower pick position bound. Zero would remove the pick comb entirely. */
 inline constexpr float pickPositionMinimum = 0.005f;   // shown as 1 %
 
-/** Positions run the whole string, bridge (0) to nut (1). The far end mirrors
-    the near one: a string's modes are symmetric about its middle, so plucking
-    at p excites the same harmonics as plucking at 1 - p (their phases differ,
-    which the pick comb keeps), and a finger at p touches the same nodes as a
-    finger at 1 - p. */
+/** Positions run bridge (0) to nut (1). Mode shapes are symmetric about the
+    middle, so p and 1 - p excite and damp the same harmonics. */
 inline constexpr float positionMaximum = 1.0f - pickPositionMinimum;
 
-/** Where the damper acts, folded about the middle of the string. */
+/** Position folded about the middle of the string. */
 inline float mirroredPosition (float position)   { return juce::jmin (position, 1.0f - position); }
 
-/** Sustain maps to a hold level in dB: 100 % holds at full level, 0 % never
-    holds (the string just decays). In between, the hold level is
-    -sustainRangeDb * (1 - sustain), so the hold is reached after
-    (1 - sustain) * decayTime seconds. */
+/** Hold level is -sustainRangeDb * (1 - sustain) dB, reached after
+    (1 - sustain) * decay seconds. Sustain 0 never holds. */
 inline constexpr float sustainRangeDb = 60.0f;
 
 //==============================================================================
 namespace detail
 {
-    /** A range that feels logarithmic to the user (equal knob travel per octave). */
+    /** Logarithmic range: equal knob travel per octave. */
     inline juce::NormalisableRange<float> logRange (float min, float max)
     {
         return { min, max,
@@ -193,7 +167,7 @@ namespace detail
         return juce::String (juce::roundToInt (v * 100.0f)) + " %";
     }
 
-    /** String positions run from the bridge (0) to the middle (0.5); shown as 0 to 100 %. */
+    /** Glide time, "off" at the minimum. */
     inline juce::String glideToText (float v, int)
     {
         return v <= 0.0015f ? juce::String ("off") : secondsToText (v, 0);
@@ -206,7 +180,6 @@ namespace detail
 
     inline juce::String toneToText (float v, int)
     {
-        // The knob runs sine, square, noise; name where it is between them.
         if (v <= toneSine + 0.005f)                  return "sine";
         if (std::abs (v - toneSquare) < 0.005f)      return "square";
         if (v >= toneNoise - 0.005f)                 return "noise";

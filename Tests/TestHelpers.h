@@ -156,9 +156,8 @@ inline bool allFinite (const juce::AudioBuffer<float>& buffer)
     return true;
 }
 
-/** Mean square of the left channel through the BS.1770 K-weighting filter
-    (48 kHz coefficients): a loudness measure rather than a plain level, so a
-    bright noise burst and a dark tone are compared the way the ear hears them. */
+/** Mean square of the left channel after BS.1770 K-weighting (48 kHz coefficients).
+    A loudness measure, so bright and dark plucks compare as heard. */
 inline double kWeightedMeanSquare (const juce::AudioBuffer<float>& audio, int start, int length)
 {
     const double b1[] { 1.53512485958697, -2.69169618940638, 1.19839281085285 }, a1[] { -1.69065929318241, 0.73248077421585 };
@@ -258,9 +257,8 @@ inline float partialLevelDb (const juce::AudioBuffer<float>& audio, int start, i
     return juce::Decibels::gainToDecibels (peakAround (f0 * (float) k) / peakAround (f0));
 }
 
-/** Counts isolated clicks: places where the third difference of the output
-    (which a smooth tone keeps small and a click makes huge) stands far above
-    its own level over the surrounding 40 ms. */
+/** Counts isolated clicks: points where the third difference stands `ratio` times
+    above its mean over the surrounding 40 ms. */
 inline int countClicks (const juce::AudioBuffer<float>& audio, int from, int to, float ratio = 20.0f)
 {
     const auto* x = audio.getReadPointer (0);

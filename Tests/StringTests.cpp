@@ -14,6 +14,7 @@
 namespace chorda_test
 {
 
+/** Notes are within 2 cents across the keyboard at dark and full brightness. */
 void testTuning (TestReport& report)
 {
     report.section ("1g. Notes are in tune");
@@ -44,6 +45,7 @@ void testTuning (TestReport& report)
         }
 }
 
+/** Sub, drive and damper on A3, measured on partial levels. */
 void testStringControls (TestReport& report, const juce::File& outDir)
 {
     report.section ("1h. Sub, drive and damper do what they say");
@@ -78,8 +80,8 @@ void testStringControls (TestReport& report, const juce::File& outDir)
         report.check (partialLevelDb (sub, seconds (0.3), seconds (0.5), f0, 1) > -6.0f, "sub level does not swamp the string");
     }
 
-    // Drive: feed the valve a near-pure sine (sine exciter, dark string, no comb,
-    // held) and look at the third harmonic it adds. Deterministic, unlike noise.
+    // Drive: a near-pure, deterministic sine in (sine exciter, dark string, pick at the middle, held),
+    // then measure the harmonics the valve adds.
     {
         auto renderSine = [&] (float drive, const juce::String& wavName)
         {
@@ -128,9 +130,8 @@ void testStringControls (TestReport& report, const juce::File& outDir)
     }
 }
 
-/** The sub is an octave below the string, and must stay there: a sub running
-    at the nominal f0/2 drifts against a loop that lands a fraction of a sample
-    away from f0, and the two phase against each other. */
+/** The sub tracks the loop's actual pitch: a sub at nominal f0/2 would beat against a loop
+    tuned a fraction of a sample away from f0. */
 void testSubTracksTheString (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
@@ -143,9 +144,7 @@ void testSubTracksTheString (TestReport& report, const juce::File& outDir)
         ChordaAudioProcessor processor;
         setParameter (processor, stringSustain, 1.0f);
         setParameter (processor, stringSub,     0.8f);
-        // A square exciter, not the default noise: it is just as rich for the
-        // sub to phase against, and it renders the same way every time. A short
-        // noise burst does not, and its luck would show up here as a swing.
+        // Square exciter: harmonically rich and deterministic, so any swing is phasing, not render variance.
         setParameter (processor, exciterTone,   pluck::toneSquare);
 
         const auto audio = render (processor, { { 0, juce::MidiMessage::noteOn (1, note, 0.9f) } }, seconds (6.0));
@@ -157,7 +156,7 @@ void testSubTracksTheString (TestReport& report, const juce::File& outDir)
         report.check (std::abs (cents) < 5.0f, name + ": the sub sits an octave below, within 5 cents",
                       juce::String (measured, 2) + " Hz vs " + juce::String (f0 * 0.5f, 2) + " Hz (" + juce::String (cents, 2) + " cents)");
 
-        // No slow phasing: the held level must not swing.
+        // No slow phasing: held level swing under 3 dB.
         float worst = 0.0f, quietest = 1.0e9f;
         for (int w = 0; w < 7; ++w)
         {
@@ -186,17 +185,13 @@ void testPickIsAlwaysOnTheString (TestReport& report)
                   "lowest " + juce::String (juce::roundToInt (lowest * 200.0f)) + " %");
 }
 
-/** Tone crossfades the three excitation waveforms. Either end of the knob must
-    be exactly the waveform it names, and the way between them must not dip or
-    bulge in level: it is a colour control, not a volume one. */
+/** Tone crossfades sine, square and noise without a dip or bulge in level. */
 void testToneCrossfade (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
     report.section ("1l. Tone crossfades sine, square and noise");
 
-    // A noise burst shorter than a period lands on the string's resonances
-    // differently every time, so a single render of the noise end of the knob
-    // can be several dB either way. Average a handful of them.
+    // The noise exciter is random and varies by several dB per render: average 6 renders.
     constexpr int renders = 6;
 
     auto levelAt = [&] (float tone)
@@ -236,7 +231,7 @@ void testToneCrossfade (TestReport& report, const juce::File& outDir)
     report.check (spread < 10.0f, "the knob changes colour without a hole in the level",
                   juce::String (spread, 1) + " dB from end to end");
 
-    // Neither half may swing further than its own endpoints do.
+    // Each half's midpoint stays within 6 dB of its endpoints.
     for (int half = 0; half < 2; ++half)
     {
         const auto a = levels[(size_t) (half * 2)], b = levels[(size_t) (half * 2 + 1)], c = levels[(size_t) (half * 2 + 2)];
@@ -246,15 +241,15 @@ void testToneCrossfade (TestReport& report, const juce::File& outDir)
                       juce::String (juce::Decibels::gainToDecibels (middle / juce::jmax (ends, 1.0e-9f)), 1) + " dB against its ends");
     }
 
-    // The ends are the named waveforms, so the knob's text must say so.
+    // The waveform constants are ordered along the knob.
     auto* parameter = ChordaAudioProcessor().getAPVTS().getParameter (exciterTone);
     juce::ignoreUnused (parameter);
     report.check (pluck::toneSine < pluck::toneSquare && pluck::toneSquare < pluck::toneNoise,
                   "the three waveforms sit in order along the knob");
 }
 
-/** A low string loses its top end as fast, in seconds, as a middle one. The
-    loop filter acts once per round trip, and low notes make few of them. */
+/** A low string loses its top end at a comparable rate in seconds to a middle one, although
+    the loop filter acts once per period and low notes have fewer periods. */
 void testLowNotesLoseTheirTop (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
@@ -278,8 +273,7 @@ void testLowNotesLoseTheirTop (TestReport& report, const juce::File& outDir)
         return 10.0 * std::log10 (high / total + 1.0e-15);
     };
 
-    // How fast the share of energy above 2 kHz falls, in dB a second, over
-    // the first second. Square pluck, so it is the same every run.
+    // Fall rate of the energy share above 2 kHz in dB/s, from 0.05 s to 0.45 s. Square pluck: deterministic.
     auto fallRate = [&] (int note)
     {
         ChordaAudioProcessor processor;
@@ -298,8 +292,7 @@ void testLowNotesLoseTheirTop (TestReport& report, const juce::File& outDir)
     }
 }
 
-/** Dragging the damper along the string is smooth: the marker sends a new
-    position every block, and the filter must glide between them. */
+/** Dragging the damper (a new position every block) does not crackle: the filter must interpolate. */
 void testDamperDragIsSmooth (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
@@ -322,7 +315,7 @@ void testDamperDragIsSmooth (TestReport& report, const juce::File& outDir)
 
         for (int position = 0; position < total; position += blockSize)
         {
-            // A drag from 10 % to 90 % and back over two seconds, one step a block.
+            // Drag from 10 % to 90 % and back, one step per block.
             const auto t = juce::jlimit (0.0, 1.0, ((double) position / sampleRate - 0.5) / 1.0);
             const auto back = (double) position / sampleRate > 1.5 ? juce::jlimit (0.0, 1.0, ((double) position / sampleRate - 1.5)) : 0.0;
             setParameter (processor, stringDamper, (float) (0.05 + 0.4 * (t - back)));
@@ -343,8 +336,7 @@ void testDamperDragIsSmooth (TestReport& report, const juce::File& outDir)
     }
 }
 
-/** The whole string is playable, and its two halves mirror each other the
-    way a real string's do. */
+/** The whole string is playable and its halves mirror each other as on a real string. */
 void testTheWholeString (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
@@ -363,9 +355,8 @@ void testTheWholeString (TestReport& report, const juce::File& outDir)
         return audio;
     };
 
-    // A pluck at 27 % and one at 73 % excite the same harmonics equally.
-    // (27 %: none of partials 3 to 9 has a node there, where a level is all
-    // rounding.)
+    // Picks at 27 % and 73 % excite partials 3 to 9 equally. 27 % avoids their nodes,
+    // where the level would be rounding noise.
     const auto f0 = 440.0f * std::pow (2.0f, (45.0f - 69.0f) / 12.0f);
     const auto near = renderAt (0.27f, 0.0f, "pick_27"), far = renderAt (0.73f, 0.0f, "pick_73");
     float worst = 0.0f;
@@ -375,14 +366,14 @@ void testTheWholeString (TestReport& report, const juce::File& outDir)
     report.check (worst < 1.0f, "plucking at 73 % excites the same harmonics as at 27 %",
                   "largest difference " + juce::String (worst, 2) + " dB over partials 3 to 9");
 
-    // ...but they are not the same pluck: the waves reach the bridge in the other order.
+    // The waveforms still differ: the waves reach the bridge in the opposite order.
     float waveform = 0.0f;
     for (int i = seconds (0.2); i < seconds (0.3); ++i)
         waveform = juce::jmax (waveform, std::abs (near.getSample (0, i) - far.getSample (0, i)));
     report.check (waveform > 0.01f, "the far half of the string is a different pluck, not a copy",
                   "largest sample difference " + juce::String (waveform, 3));
 
-    // A finger at 30 % and at 70 % touches the same nodes: the same sound.
+    // Dampers at 30 % and 70 % touch the same nodes.
     const auto fingerNear = renderAt (0.2f, 0.3f, "damper_30"), fingerFar = renderAt (0.2f, 0.7f, "damper_70");
     float fingerDifference = 0.0f;
     for (int i = 0; i < fingerNear.getNumSamples(); ++i)
@@ -390,7 +381,7 @@ void testTheWholeString (TestReport& report, const juce::File& outDir)
     report.check (fingerDifference < 1.0e-3f, "a finger at 70 % damps the string as one at 30 % does",
                   "largest difference " + juce::String (fingerDifference, 6));
 
-    // And at the very far end it touches nothing that moves: off, as at the bridge.
+    // At the nut the damper touches nothing that moves, as at the bridge.
     const auto fingerOff = renderAt (0.2f, 0.0f, "damper_off"), fingerAtNut = renderAt (0.2f, 1.0f, "damper_nut");
     float nutDifference = 0.0f;
     for (int i = 0; i < fingerOff.getNumSamples(); ++i)
@@ -403,8 +394,8 @@ void testTheWholeString (TestReport& report, const juce::File& outDir)
                   pick->getText (pick->convertTo0to1 (0.5f), 0));
 }
 
-/** A pitch bend moves the pitch and nothing else: the loop length glides
-    rather than stepping once a block, which used to add a zipper. */
+/** A pitch bend changes only the pitch: the loop length glides within the block
+    instead of stepping per block (zipper noise). */
 void testBendIsClean (TestReport& report)
 {
     using namespace pluck::ParamID;
@@ -445,8 +436,7 @@ void testBendIsClean (TestReport& report)
                   juce::String (share, 1) + " dB of its energy above 4 kHz (it was -45 before the fix)");
 }
 
-/** Moving the pick reshapes a note that is already ringing, and a damper
-    with no pressure is no damper. */
+/** Moving the pick reshapes a ringing note without a click; a damper at zero pressure has no effect. */
 void testPickWhileRinging (TestReport& report)
 {
     using namespace pluck::ParamID;
@@ -499,8 +489,7 @@ void testPickWhileRinging (TestReport& report)
     report.check (difference < 1.0e-6f, "a damper with no pressure is no damper", "largest difference " + juce::String (difference, 8));
 }
 
-/** A note sounds when it is played. The string used to be heard at the far
-    end of its delay line, so every note waited one period: 31 ms at C1. */
+/** Every note is heard within 1 ms of note-on, independent of its delay-line length. */
 void testNoLatency (TestReport& report)
 {
     using namespace pluck::ParamID;
@@ -522,8 +511,7 @@ void testNoLatency (TestReport& report)
                   "slowest " + juce::String (worst, 2) + " ms");
 }
 
-/** Sine, square and noise at one loudness. The tones used to be up to 10 dB
-    louder than the noise, which clipped chords played on them. */
+/** Sine, square and noise exciters match in K-weighted loudness, and a square chord keeps headroom. */
 void testExciterLevels (TestReport& report)
 {
     using namespace pluck::ParamID;
@@ -531,9 +519,7 @@ void testExciterLevels (TestReport& report)
 
     auto loudness = [] (float tone, int note, float attack)
     {
-        // The noise burst varies from pluck to pluck (see the note on
-        // juce::Random in the handoff), so it is averaged; 8 renders still
-        // let the worst case wander by 3 dB from run to run.
+        // The noise exciter is random: average 16 renders (8 leave the worst case ~3 dB unstable).
         const int renders = tone > 0.9f ? 16 : 1;
         double total = 0.0;
         for (int r = 0; r < renders; ++r)
@@ -568,7 +554,7 @@ void testExciterLevels (TestReport& report)
     report.check (loudest (sineOff) < 6.0 && loudest (squareOff) < 6.0, "neither tone is ever much louder than the noise",
                   "loudest " + juce::String (juce::jmax (loudest (sineOff), loudest (squareOff)), 1) + " dB");
 
-    // A chord of squares, the loudest case there was, has its headroom back.
+    // A full-velocity square chord is the loudest case.
     {
         ChordaAudioProcessor processor;
         setParameter (processor, exciterTone, pluck::toneSquare);
@@ -581,8 +567,7 @@ void testExciterLevels (TestReport& report)
     }
 }
 
-/** The pluck filter's level make-up uses a closed form for the energy of a
-    cascade of one-poles. It must agree with summing the impulse response. */
+/** The closed-form energy of a one-pole cascade (pluck filter make-up) matches the summed impulse response. */
 void testCascadeEnergy (TestReport& report)
 {
     report.section ("1z. Pluck filter make-up");

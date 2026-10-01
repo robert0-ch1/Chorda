@@ -3,41 +3,10 @@
 
     StringView.h
 
-    A drawing of the string itself: bridge on the left, nut on the right, and
-    the string between them.
-
-    While notes sound, the string moves the way a real plucked string does.
-    At the moment of the pluck it is a triangle with its apex at the pick;
-    its partials then swing at their own rates and the high ones die first,
-    faster with a darker Brightness, so the shape relaxes into the smooth bow
-    of the fundamental. A finger on the string pins it to a node under the
-    damper.
-
-    Two markers on the string are live controls, each bound to a parameter:
-
-        pick   (pointer hand below the string)   where the string is plucked, and
-                                                 where it is heard from; the string
-                                                 gives under the finger while you
-                                                 hold it, and keeps its kink there.
-                                                 The fingertip rests just touching
-                                                 the string, always behind it; at
-                                                 every note-on the hand plays a
-                                                 three-frame pluck, rising a little
-                                                 as the finger flicks
-        damper (dot above the string)            where a finger touches, and how
-                                                 hard: drag sideways to move it,
-                                                 up and down to change pressure
-
-    Both run over the whole string, bridge (0 %) to nut (100 %). Past the
-    middle a position mirrors the one before it, as on a real string: the same
-    harmonics, the pluck's phases the other way round. Double-click a marker to
-    reset it. The damper at either end is off; the pick is always on the string.
-
-    The LFOs swing the damper either side of where it is set, and the dot
-    moves with them, so you see the finger where it really is. A soft blue
-    glow marks the whole area they reach. Hover over that area and the dot
-    stops at its set place, so it can be seen and dragged; move away and it
-    moves again.
+    Animated string between bridge (left) and nut (right), with two draggable
+    markers: the pick (hand below the string) and the damper (dot above it).
+    The displacement is a sum of decaying partials seeded by a triangular
+    pluck shape; the damper's LFO range is drawn as a glow.
 
   ==============================================================================
 */
@@ -55,8 +24,9 @@ class StringView final : public juce::Component,
                          private juce::Timer
 {
 public:
-    /** @param levelSource   returns the current string level (0..1-ish), polled on a timer */
-    /** @param damperModulationSource  returns where the position LFO has the damper, or a negative value while it is idle; polled on a timer */
+    /** All sources are polled on the UI timer.
+        @param levelSource             current string level, roughly 0..1
+        @param damperModulationSource  LFO-modulated damper position, negative while idle */
     StringView (juce::AudioProcessorValueTreeState& apvts, std::function<float()> levelSource,
                 std::function<float()> damperModulationSource = {},
                 std::function<float()> pressureModulationSource = {},
@@ -72,12 +42,10 @@ public:
     void mouseUp (const juce::MouseEvent&) override;
     void mouseDoubleClick (const juce::MouseEvent&) override;
 
-    /** Holds the pluck on one frame (0, 1, 2), for still renders such as the
-        README screenshot, which cannot run the animation's timer. */
+    /** Freezes the pluck animation on frame 0, 1 or 2 for offline snapshots. */
     void showPluckFrameForSnapshot (int frame)   { pluckAge = ((float) frame + 0.5f) * 0.1f; frozenForSnapshot = true; repaint(); }
 
-    /** Distance of the string's ends from our edges. The voice line above
-        uses it to sit square over the string. */
+    /** Inset of the string ends from the component edges; shared with the voice row layout. */
     static constexpr int postInset = 44;
 
 private:
@@ -114,17 +82,17 @@ private:
     /** String displacement at x (0..1) for the current animation time. */
     float displacementAt (float x, float phaseOffset = 0.0f) const noexcept;
 
-    /** Where the finger really is: the damper position moved by the LFO. */
+    /** Damper position including LFO modulation. */
     float movingDamperPosition() const noexcept;
 
-    /** True while the dot is held still at its set place for editing. */
+    /** True while the dot is held at its set position for editing (aura hovered). */
     bool  damperFrozen() const noexcept;
 
-    /** Where the dot is drawn: moving with the LFOs, or at its set place while frozen. */
+    /** Drawn damper position and pressure: modulated, or the set values while frozen. */
     float shownDamperPosition() const noexcept;
     float shownDamperPressure() const noexcept;
 
-    /** The area the LFOs can take the dot through, empty while they are idle. */
+    /** Area the LFOs can move the dot through; empty while they are idle. */
     juce::Rectangle<float> auraBounds() const noexcept;
     void  drawAura (juce::Graphics&) const;
 
@@ -136,20 +104,20 @@ private:
     std::function<float()> levelSource, damperModulationSource, pressureModulationSource;
     std::function<int()>   noteOnSource;
     int   lastNoteOnCount = 0;
-    float pluckAge          = 1.0f;    ///< seconds since the hand last plucked; the animation runs for three frames
+    float pluckAge          = 1.0f;    ///< seconds since the last note-on, drives the pluck frames
     bool  frozenForSnapshot = false;
 
-    /** Which frame of the pluck is showing (0, 1, 2), or -1 at rest. */
+    /** Current pluck frame (0, 1, 2), or -1 at rest. */
     int   pluckFrame() const noexcept;
-    float damperModulated = -1.0f;   ///< where the position LFO has the damper, negative while idle
-    float pressureModulated = -1.0f; ///< how hard the pressure LFO has it pressing, negative while idle
-    bool  auraHovered = false;       ///< the mouse is over the LFOs' area, so the dot holds still
-    float auraPhase   = 0.0f;        ///< the glow breathes slowly
-    float press       = 0.0f;        ///< 0..1, how far the string gives under a held finger
+    float damperModulated = -1.0f;   ///< modulated position, negative while idle
+    float pressureModulated = -1.0f; ///< modulated pressure, negative while idle
+    bool  auraHovered = false;       ///< mouse over the LFO area
+    float auraPhase   = 0.0f;        ///< glow pulse phase
+    float press       = 0.0f;        ///< 0..1 string deflection under a held pick
 
     float level         = 0.0f;   ///< smoothed string level for the animation
     float time          = 0.0f;   ///< animation phase in fundamental periods
-    float age           = 0.0f;   ///< seconds since the last pluck, for the partials' decay
+    float age           = 0.0f;   ///< seconds since the last pluck, for partial decay
     int   hoveredMarker = -1;
     int   draggedMarker = -1;
     float dragStartPressure = 0.0f;

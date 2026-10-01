@@ -18,7 +18,7 @@ PresetBar::PresetBar (PresetManager& manager)
     for (auto* button : { &previousButton, &nextButton, &nameButton })
         button->setWantsKeyboardFocus (false);
 
-    // The stepper draws its own frame in paint(); the icon buttons draw theirs.
+    // The stepper frame is drawn in paint().
     for (auto* button : std::initializer_list<juce::Button*> { &previousButton, &nextButton, &nameButton,
                                                               &saveButton, &saveAsButton, &deleteButton })
         addAndMakeVisible (button);
@@ -50,11 +50,11 @@ void PresetBar::resized()
 {
     auto bounds = getLocalBounds();
     if (bounds.isEmpty())
-        return;   // not laid out yet (the constructor refreshes the name before we have a size)
+        return;   // called from the constructor before the first layout
 
     const auto h = bounds.getHeight();
 
-    // Three square icon buttons on the right
+    // Square icon buttons on the right
     deleteButton.setBounds (bounds.removeFromRight (h));
     bounds.removeFromRight (6);
     saveAsButton.setBounds (bounds.removeFromRight (h));
@@ -62,7 +62,7 @@ void PresetBar::resized()
     saveButton.setBounds (bounds.removeFromRight (h));
     bounds.removeFromRight (14);
 
-    // Stepper: [<][ name ][>] as one field, filling what is left
+    // Stepper [<][name][>] fills the remaining width
     stepper = bounds;
     auto inner = stepper;
     previousButton.setBounds (inner.removeFromLeft (h));
@@ -72,7 +72,7 @@ void PresetBar::resized()
 
 void PresetBar::paint (juce::Graphics& g)
 {
-    // The stepper's shared frame and the two separators inside it
+    // Stepper frame and separators
     const auto frame = stepper.toFloat().reduced (0.5f);
     g.setColour (colours::field);
     g.fillRoundedRectangle (frame, 4.0f);
@@ -100,8 +100,7 @@ void PresetBar::refreshDisplayedName()
     shownModified = modified;
 
     nameButton.setButtonText (modified ? name + " *" : name);
-    // Save is always there: on a user preset it overwrites, and on a factory
-    // preset, which is built in and cannot be overwritten, it asks for a name.
+    // Save stays enabled: on a factory preset it falls back to save as.
     const bool isUserPreset = ! presets.isFactoryPresetName (name) && presets.userPresetExists (name);
     deleteButton.setEnabled (isUserPreset);
     resized();
@@ -145,7 +144,7 @@ void PresetBar::saveClicked()
 
     if (presets.isFactoryPresetName (current) || ! presets.userPresetExists (current))
     {
-        saveAsClicked();   // nothing to overwrite
+        saveAsClicked();
         return;
     }
 
@@ -203,7 +202,7 @@ void PresetBar::deleteClicked()
 }
 
 //==============================================================================
-// Plugins must not run modal loops, so every dialog below is asynchronous.
+// Dialogs are asynchronous: plugins must not run modal loops.
 
 void PresetBar::askForName (const juce::String& initialName, std::function<void (juce::String)> onAccept)
 {

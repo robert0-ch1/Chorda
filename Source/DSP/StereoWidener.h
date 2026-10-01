@@ -3,14 +3,9 @@
 
     StereoWidener.h
 
-    Turns the mono string into a wide stereo image. An ensemble of four
-    modulated delay taps, two per side, each side's taps 120 degrees apart in
-    the modulation cycle and every left tap 180 degrees from its right twin,
-    so the two channels drift against each other and never line up. A faster,
-    shallower ripple on top gives the shimmer. The dry signal is faded down
-    as the width comes up, so at full width the sound is almost all ensemble.
-
-    Width 0 is bit-exact mono on both channels.
+    Mono to stereo ensemble: two modulated delay taps per side, 120 degrees
+    apart, left 180 degrees from right, plus a faster shimmer modulation.
+    Dry is reduced as width rises. Width 0 is bit-exact mono.
 
   ==============================================================================
 */
@@ -47,15 +42,15 @@ public:
         right.reset();
     }
 
-    /** Writes left and right from mono. The three pointers may not alias. */
+    /** Renders left and right from mono. Pointers must not alias. */
     void process (const float* mono, float* outLeft, float* outRight, int numSamples, float width)
     {
         widthSmoothed.setTargetValue (juce::jlimit (0.0f, 1.0f, width));
 
-        const auto baseA = (float) (0.0130 * rate);   // the two tap lengths per side
+        const auto baseA = (float) (0.0130 * rate);   // tap base delays
         const auto baseB = (float) (0.0094 * rate);
-        const auto sweep = (float) (0.0028 * rate);   // full modulation depth at width 1
-        const auto ripple = (float) (0.00018 * rate); // the fast shimmer
+        const auto sweep = (float) (0.0028 * rate);   // modulation depth at width 1
+        const auto ripple = (float) (0.00018 * rate); // shimmer depth
         const auto increment = lfoRateHz / (float) rate;
         constexpr auto twoPi = juce::MathConstants<float>::twoPi;
 
@@ -69,7 +64,7 @@ public:
 
             if (w <= 0.0f)
             {
-                // Keep the delay lines running so a later width change is seamless
+                // Keep the delay lines advancing for seamless width changes.
                 left.popSample (0, baseA, true);
                 right.popSample (0, baseA, true);
                 outLeft[i] = outRight[i] = in;
@@ -90,7 +85,7 @@ public:
                 const auto wetR = 0.5f * (tap (right, baseA, 0.5f,        false) + tap (right, baseB, 1.0f / 6.0f, true));
 
                 const auto dry  = 1.0f - 0.7f * w;
-                const auto norm = 1.0f + 0.2f * w;   // the taps add incoherently: a little make-up keeps the level
+                const auto norm = 1.0f + 0.2f * w;   // make-up for incoherent tap sum
                 outLeft[i]  = (in * dry + wetL * w) * norm;
                 outRight[i] = (in * dry + wetR * w) * norm;
             }
@@ -99,10 +94,8 @@ public:
             if (phase >= 1.0f)
                 phase -= 1.0f;
 
-            // The shimmer runs 6.7 times faster on its own phase. It used to
-            // be worked out from the sweep's phase, and since 6.7 is not a
-            // whole number it jumped every time the sweep wrapped: a click
-            // every 3.2 s on any held note with Width up.
+            // Separate shimmer phase: a non-integer ratio derived from the
+            // sweep phase would jump at each sweep wrap.
             shimmerPhase += increment * shimmerRatio;
             if (shimmerPhase >= 1.0f)
                 shimmerPhase -= 1.0f;
@@ -111,7 +104,7 @@ public:
 
 private:
     static constexpr float lfoRateHz = 0.31f;
-    static constexpr float shimmerRatio = 6.7f;   ///< the shimmer's rate against the sweep's
+    static constexpr float shimmerRatio = 6.7f;   ///< shimmer rate / sweep rate
 
     double rate = 48000.0;
     float  phase = 0.0f, shimmerPhase = 0.0f;
