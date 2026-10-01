@@ -336,29 +336,27 @@ void KarplusVoice::prepareExciterFilter() noexcept
     exciterStageCoeff = loopStageCoeff;
     exciterStageState.fill (0.0f);
 
-    // Equal noise power through it. One stage has a closed form; a cascade
-    // is summed from its impulse response.
-    if (exciterStages == 1)
-    {
-        exciterNoiseMakeup = std::sqrt ((1.0f + exciterStageCoeff) / (1.0f - exciterStageCoeff));
-        return;
-    }
+    // Make-up for equal noise power through the cascade. The energy of K
+    // identical one-poles has a closed form, so this costs K steps, not a
+    // summed impulse response (that was up to 640k operations per low note).
+    exciterNoiseMakeup = (float) (1.0 / std::sqrt (cascadeEnergy (exciterStages, (double) exciterStageCoeff)));
+}
 
-    std::array<double, 16> state {};
-    double energy = 0.0;
-    const auto a = (double) exciterStageCoeff;
-    const auto length = juce::jlimit (64, 40000, (int) (30.0 * exciterStages / juce::jmax (1.0e-4, 1.0 - a)));
-    for (int n = 0; n < length; ++n)
+double KarplusVoice::cascadeEnergy (int stages, double a) noexcept
+{
+    // Sum of h[n]^2 for K stages of y = (1 - a) x + a y[n-1]:
+    //   E = (1 - a) / (1 + a)^(2K - 1) * sum_n C(K-1, n)^2 a^(2n)
+    // (Euler's transformation of 2F1(K, K; 1; a^2); the series stops at n = K - 1.)
+    stages = juce::jmax (1, stages);
+    a = juce::jlimit (0.0, 0.999999, a);
+    double sum = 0.0, binomial = 1.0, power = 1.0;
+    for (int n = 0; n < stages; ++n)
     {
-        double x = n == 0 ? 1.0 : 0.0;
-        for (int k = 0; k < exciterStages; ++k)
-        {
-            state[(size_t) k] = (1.0 - a) * x + a * state[(size_t) k];
-            x = state[(size_t) k];
-        }
-        energy += x * x;
+        sum += binomial * binomial * power;
+        binomial = binomial * (double) (stages - 1 - n) / (double) (n + 1);
+        power *= a * a;
     }
-    exciterNoiseMakeup = (float) (1.0 / std::sqrt (juce::jmax (1.0e-12, energy)));
+    return juce::jmax (1.0e-12, (1.0 - a) / std::pow (1.0 + a, 2 * stages - 1) * sum);
 }
 
 void KarplusVoice::glideFromFrequency (float hz) noexcept

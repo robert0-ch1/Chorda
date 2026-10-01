@@ -2296,6 +2296,38 @@ void testNoteChangesDoNotClick (TestReport& report, const juce::File& outDir)
     }
 }
 
+
+//==============================================================================
+/** The pluck filter's level make-up uses a closed form for the energy of a
+    cascade of one-poles. It must agree with summing the impulse response. */
+void testCascadeEnergy (TestReport& report)
+{
+    report.section ("1z. Pluck filter make-up");
+
+    double worst = 0.0;
+    for (const int stages : { 1, 2, 3, 5, 8, 12, 16 })
+        for (const double a : { 0.05, 0.3, 0.6, 0.9, 0.99, 0.999 })
+        {
+            std::vector<double> state ((size_t) stages, 0.0);
+            double energy = 0.0;
+            for (int n = 0; n < 400000; ++n)
+            {
+                double x = n == 0 ? 1.0 : 0.0;
+                for (auto& y : state)
+                {
+                    y = (1.0 - a) * x + a * y;
+                    x = y;
+                }
+                energy += x * x;
+            }
+            const auto closed = pluck::KarplusVoice::cascadeEnergy (stages, a);
+            worst = juce::jmax (worst, std::abs (closed / energy - 1.0));
+        }
+
+    report.check (worst < 1.0e-6, "the closed form matches the summed impulse response",
+                  "largest relative error " + juce::String (worst, 9));
+}
+
 int main (int argc, char* argv[])
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -2344,6 +2376,7 @@ int main (int argc, char* argv[])
     testLowNotesLoseTheirTop (report, outDir);
     testHeldNotesDoNotClick (report, outDir);
     testNoteChangesDoNotClick (report, outDir);
+    testCascadeEnergy (report);
     testDamperDragIsSmooth (report, outDir);
     testTheWholeString (report, outDir);
     testGlideLevel (report);

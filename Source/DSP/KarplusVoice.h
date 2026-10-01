@@ -125,6 +125,7 @@ public:
     void controllerMoved (int, int) override {}
     void setCurrentPlaybackSampleRate (double newRate) override;
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override;
+    using juce::SynthesiserVoice::renderNextBlock;
 
 private:
     //==============================================================================
@@ -168,6 +169,12 @@ private:
 
     /** The pluck's band-limiting filter, and the noise make-up that goes with it. */
     void  prepareExciterFilter() noexcept;
+
+public:
+    /** Energy of the impulse response of `stages` identical one-pole
+        low-passes with coefficient a. */
+    static double cascadeEnergy (int stages, double a) noexcept;
+private:
 
     /** Works out the Tone crossfade between the three waveforms. */
     void  updateExciterMix() noexcept;
