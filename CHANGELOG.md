@@ -132,7 +132,7 @@ All notable changes to Chorda are documented here. The format follows
 
 ## [1.0.0] - 2026-09-09
 
-First public release. A ground-up rework of the ECS7012 coursework plugin.
+First public release. A ground-up rework of Pluck Designer.
 
 ### Added
 - Envelope built into the string: Attack is the excitation length, Decay,

@@ -1,18 +1,11 @@
 # Chorda
 
-**One virtual string, a whole shelf of instruments.**
+**Strings, at hand.**
 
-Chorda is a synthesiser built around a simulated string. It gets plucked,
-rings, mellows and dies away the way a real one does, and then goes where a
-real one can't: it can be bowed for seconds, held at any level for as long as
-the key is down, heard from a pickup you slide while it rings, and sculpted by
-a dampener that glides along it picking out harmonics.
+One simulated string, many instruments: from deep basses to bright harps,
+from quick plucks to bowed swells.
 
-Chorda started as Pluck Designer, a Karplus-Strong synth I built as a
-university project at Queen Mary University of London. The project ended
-before the instrument felt finished, so I came back to it: a new string
-engine, a dampener, an envelope that lives inside the string
-itself, presets and a new interface.
+It started as Pluck Designer, a university project, and is finished here.
 
 AU · VST3 · Standalone, for macOS, Windows and Linux.
 
