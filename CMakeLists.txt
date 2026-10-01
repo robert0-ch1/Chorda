@@ -154,7 +154,16 @@ if(CHORDA_BUILD_TESTS)
     juce_add_console_app(PluckRenderTest PRODUCT_NAME "PluckRenderTest")
     juce_generate_juce_header(PluckRenderTest)
 
-    target_sources(PluckRenderTest PRIVATE Tests/RenderTest.cpp ${CHORDA_SOURCES})
+    target_sources(PluckRenderTest PRIVATE
+        Tests/RenderTest.cpp
+        Tests/TestHelpers.h
+        Tests/Tests.h
+        Tests/EnvelopeTests.cpp
+        Tests/StringTests.cpp
+        Tests/PlayingTests.cpp
+        Tests/PluginTests.cpp
+        Tests/Tools.cpp
+        ${CHORDA_SOURCES})
     target_include_directories(PluckRenderTest PRIVATE Source)
 
     # The processor sources expect these to come from the plugin wrapper.
