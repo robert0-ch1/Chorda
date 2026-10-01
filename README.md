@@ -5,7 +5,7 @@ Strings, at hand.
 One simulated string, many instruments: from deep basses to bright harps,
 from quick plucks to bowed swells.
 
-It started as Pluck Designer, a university project, and is finished here.
+15 built in presets,
 
 AU, VST3 and standalone, for macOS, Windows and Linux.
 
