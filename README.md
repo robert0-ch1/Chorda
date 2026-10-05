@@ -47,8 +47,6 @@ Then rescan plugins in your DAW.
 | Voices, Glide, Octave | Mono, Legato or up to 64 voices; pitch glide; ±2 octaves. |
 | Width, Drive, Reverb, Gain | Stereo ensemble; 2x oversampled valve drive; reverb send. |
 
-Fifteen presets, from basses to guitars, keys and pads, are there to start from.
-
 ## System Diagram
 
 ![Signal flow of one voice](docs/signal-flow.svg)
