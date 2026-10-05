@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Chorda</title>
+    <options customize="always" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <domains enable_localSystem="true"/>
+    <choices-outline>
+        <line choice="au"/>
+        <line choice="vst3"/>
+        <line choice="app"/>
+    </choices-outline>
+    <choice id="au" title="Audio Unit" description="For Logic Pro, GarageBand and other AU hosts.">
+        <pkg-ref id="com.robertochiurazzi.chorda.au"/>
+    </choice>
+    <choice id="vst3" title="VST3" description="For Ableton Live, Cubase, Bitwig, Reaper and other VST3 hosts.">
+        <pkg-ref id="com.robertochiurazzi.chorda.vst3"/>
+    </choice>
+    <choice id="app" title="Standalone app" description="Chorda as an app, without a DAW.">
+        <pkg-ref id="com.robertochiurazzi.chorda.app"/>
+    </choice>
+    <pkg-ref id="com.robertochiurazzi.chorda.au">au.pkg</pkg-ref>
+    <pkg-ref id="com.robertochiurazzi.chorda.vst3">vst3.pkg</pkg-ref>
+    <pkg-ref id="com.robertochiurazzi.chorda.app">app.pkg</pkg-ref>
+</installer-gui-script>

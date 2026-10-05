@@ -17,8 +17,8 @@ AU, VST3 and standalone, for macOS, Windows and Linux.
 Get the file for your system from
 [Releases](https://github.com/robert0-ch1/Chorda/releases/latest).
 
-macOS: open `Chorda-macOS.pkg` and follow the installer. It puts the AU,
-the VST3 and the app in place. The installer is not signed by Apple yet, so
+macOS: open `Chorda-macOS.pkg` and pick what to install: the AU, the VST3,
+the standalone app, or all three. The installer is not signed by Apple yet, so
 the first time macOS stops it: open System Settings, Privacy & Security, and
 click Open Anyway.
 

@@ -61,23 +61,29 @@ jobs:
             codesign --verify --deep --strict --verbose=2 "$bundle"
           done
 
-      # An installer that puts each format in its system folder, plus the
-      # same bundles zipped for manual installs.
+      # An installer that lets people pick the AU, the VST3 and the app, each
+      # going to its system folder, plus the same bundles zipped.
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: |
           out=build/Chorda_artefacts/Release
-          root=dist/pkgroot
-          mkdir -p "$root/Library/Audio/Plug-Ins/Components" "$root/Library/Audio/Plug-Ins/VST3" "$root/Applications"
-          ditto --norsrc "$out/AU/Chorda.component"    "$root/Library/Audio/Plug-Ins/Components/Chorda.component"
-          ditto --norsrc "$out/VST3/Chorda.vst3"       "$root/Library/Audio/Plug-Ins/VST3/Chorda.vst3"
-          ditto --norsrc "$out/Standalone/Chorda.app"  "$root/Applications/Chorda.app"
-          pkgbuild --analyze --root "$root" dist/components.plist
-          for i in 0 1 2; do plutil -replace $i.BundleIsRelocatable -bool NO dist/components.plist; done
-          version=$(grep -m1 -A1 'project(Chorda' CMakeLists.txt | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo 1.0.0)
-          pkgbuild --root "$root" --component-plist dist/components.plist \
-                   --identifier com.robertochiurazzi.chorda --version "$version" \
-                   --install-location / dist/Chorda-macOS.pkg
+          version=$(grep -m1 -A1 'project(Chorda' CMakeLists.txt | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          mkdir -p dist/pkgs
+          package() {   # package <id> <bundle> <install folder>
+            root="dist/root-$1"
+            mkdir -p "$root/$3"
+            ditto --norsrc "$out/$2" "$root/$3/$(basename "$2")"
+            pkgbuild --analyze --root "$root" "dist/$1.plist"
+            plutil -replace 0.BundleIsRelocatable -bool NO "dist/$1.plist"
+            pkgbuild --root "$root" --component-plist "dist/$1.plist" \
+                     --identifier "com.robertochiurazzi.chorda.$1" --version "$version" \
+                     --install-location / "dist/pkgs/$1.pkg"
+          }
+          package au   AU/Chorda.component    Library/Audio/Plug-Ins/Components
+          package vst3 VST3/Chorda.vst3       Library/Audio/Plug-Ins/VST3
+          package app  Standalone/Chorda.app  Applications
+          productbuild --distribution packaging/macos/distribution.xml \
+                       --package-path dist/pkgs --version "$version" dist/Chorda-macOS.pkg
 
           mkdir -p dist/Chorda
           ditto --norsrc "$out/AU/Chorda.component" dist/Chorda/Chorda.component
