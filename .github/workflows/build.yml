@@ -85,14 +85,16 @@ jobs:
           productbuild --distribution packaging/macos/distribution.xml \
                        --package-path dist/pkgs --version "$version" dist/Chorda-macOS.pkg
 
+      # An installer with the VST3 and the app as separate choices.
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist/Chorda | Out-Null
-          Copy-Item -Recurse build/Chorda_artefacts/Release/VST3/Chorda.vst3 dist/Chorda/
-          Copy-Item build/Chorda_artefacts/Release/Standalone/Chorda.exe dist/Chorda/
-          Compress-Archive -Path dist/Chorda -DestinationPath dist/Chorda-Windows.zip
+          $version = (Select-String -Path CMakeLists.txt -Pattern 'VERSION (\d+\.\d+\.\d+)' | Select-Object -First 1).Matches[0].Groups[1].Value
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
+          & $iscc "/DAppVersion=$version" packaging\windows\Chorda.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Package (Linux)
         if: runner.os == 'Linux'
@@ -109,10 +111,11 @@ jobs:
           path: |
             dist/Chorda-${{ matrix.name }}.zip
             dist/Chorda-${{ matrix.name }}.pkg
+            dist/Chorda-${{ matrix.name }}.exe
           if-no-files-found: error
 
-  # A version tag (v1.0.0, ...) publishes the macOS installer and the Windows
-  # and Linux zips as a release.
+  # A version tag (v1.0.0, ...) publishes the macOS and Windows installers
+  # and the Linux zip as a release.
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
@@ -128,4 +131,4 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.pkg --repo "$GITHUB_REPOSITORY" --title "Chorda $GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" dist/*.pkg dist/*.exe dist/*.zip --repo "$GITHUB_REPOSITORY" --title "Chorda $GITHUB_REF_NAME" --generate-notes

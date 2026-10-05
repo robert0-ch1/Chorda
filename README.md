@@ -22,8 +22,9 @@ the standalone app, or all three. The installer is not signed by Apple yet, so
 the first time macOS stops it: open System Settings, Privacy & Security, and
 click Open Anyway.
 
-Windows: unzip `Chorda-Windows.zip`, copy `Chorda.vst3` to
-`C:\Program Files\Common Files\VST3`. The standalone app is `Chorda.exe`.
+Windows: run `Chorda-Windows.exe` and pick the VST3, the standalone app, or
+both. Windows may warn that the publisher is unknown: click More info, then
+Run anyway.
 
 Linux: unzip `Chorda-Linux.zip`, copy `Chorda.vst3` to `~/.vst3`. The
 standalone app is `./Chorda`.
