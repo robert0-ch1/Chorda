@@ -31,9 +31,9 @@ standalone app is `./Chorda`.
 
 Then rescan plugins in your DAW.
 
-## Controls
+## Parameters
 
-| Control | What it does |
+| Parameter | What it does |
 |---|---|
 | Pick | Where the string is plucked. A comb filter, 1 − z<sup>−pN</sup>, on the pluck and on what you hear, like a pickup under the pick. |
 | Damp | The dampener: a six-stage comb after the string that keeps the harmonics with a node under the dot. |
