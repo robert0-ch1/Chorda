@@ -14,22 +14,35 @@ AU, VST3 and standalone, for macOS, Windows and Linux.
 
 ## Download
 
-Get the latest zip for your system from
-[Releases](https://github.com/robert0-ch1/Chorda/releases/latest), unzip it,
-and copy the plugins into place:
+Get the file for your system from
+[Releases](https://github.com/robert0-ch1/Chorda/releases/latest).
 
-| System  | AU | VST3 | Standalone |
-|---------|----|------|------------|
-| macOS   | `Chorda.component` to `~/Library/Audio/Plug-Ins/Components` | `Chorda.vst3` to `~/Library/Audio/Plug-Ins/VST3` | `Chorda.app` to Applications |
-| Windows | | `Chorda.vst3` to `C:\Program Files\Common Files\VST3` | run `Chorda.exe` |
-| Linux   | | `Chorda.vst3` to `~/.vst3` | run `./Chorda` |
+macOS: open `Chorda-macOS.pkg` and follow the installer. It puts the AU,
+the VST3 and the app in place. The installer is not signed by Apple yet, so
+the first time macOS stops it: open System Settings, Privacy & Security, and
+click Open Anyway.
 
-On macOS the builds are not signed yet, so macOS will block them the first
-time. Clear that once in Terminal:
+Windows: unzip `Chorda-Windows.zip`, copy `Chorda.vst3` to
+`C:\Program Files\Common Files\VST3`. The standalone app is `Chorda.exe`.
+
+Linux: unzip `Chorda-Linux.zip`, copy `Chorda.vst3` to `~/.vst3`. The
+standalone app is `./Chorda`.
+
+Then rescan plugins in your DAW.
+
+<details>
+<summary>Installing by hand on macOS</summary>
+
+`Chorda-macOS.zip` has the same files. Copy `Chorda.component` to
+`~/Library/Audio/Plug-Ins/Components`, `Chorda.vst3` to
+`~/Library/Audio/Plug-Ins/VST3` and `Chorda.app` to Applications, then run
+this once in Terminal so macOS lets them load:
 
 ```bash
 xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Chorda.component ~/Library/Audio/Plug-Ins/VST3/Chorda.vst3 /Applications/Chorda.app
 ```
+
+</details>
 
 ## Controls
 

@@ -48,17 +48,42 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
 
-      # One zip per system with every format it builds: AU (macOS only),
-      # VST3 and the standalone app. Zipped here so file permissions and
-      # macOS bundles survive the trip.
+      # JUCE adds moduleinfo.json to the VST3 after the linker has signed it,
+      # which leaves the signature broken and some hosts (Ableton Live among
+      # them) refuse to load it. Re-sign every bundle ad hoc and check it.
+      - name: Sign (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          for b in AU/Chorda.component VST3/Chorda.vst3 Standalone/Chorda.app; do
+            bundle="build/Chorda_artefacts/Release/$b"
+            xattr -cr "$bundle"
+            codesign --force --deep --sign - "$bundle"
+            codesign --verify --deep --strict --verbose=2 "$bundle"
+          done
+
+      # An installer that puts each format in its system folder, plus the
+      # same bundles zipped for manual installs.
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: |
+          out=build/Chorda_artefacts/Release
+          root=dist/pkgroot
+          mkdir -p "$root/Library/Audio/Plug-Ins/Components" "$root/Library/Audio/Plug-Ins/VST3" "$root/Applications"
+          ditto --norsrc "$out/AU/Chorda.component"    "$root/Library/Audio/Plug-Ins/Components/Chorda.component"
+          ditto --norsrc "$out/VST3/Chorda.vst3"       "$root/Library/Audio/Plug-Ins/VST3/Chorda.vst3"
+          ditto --norsrc "$out/Standalone/Chorda.app"  "$root/Applications/Chorda.app"
+          pkgbuild --analyze --root "$root" dist/components.plist
+          for i in 0 1 2; do plutil -replace $i.BundleIsRelocatable -bool NO dist/components.plist; done
+          version=$(grep -m1 -A1 'project(Chorda' CMakeLists.txt | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo 1.0.0)
+          pkgbuild --root "$root" --component-plist dist/components.plist \
+                   --identifier com.robertochiurazzi.chorda --version "$version" \
+                   --install-location / dist/Chorda-macOS.pkg
+
           mkdir -p dist/Chorda
-          cp -R build/Chorda_artefacts/Release/AU/Chorda.component \
-                build/Chorda_artefacts/Release/VST3/Chorda.vst3 \
-                build/Chorda_artefacts/Release/Standalone/Chorda.app dist/Chorda/
-          ditto -c -k --sequesterRsrc --keepParent dist/Chorda dist/Chorda-macOS.zip
+          ditto --norsrc "$out/AU/Chorda.component" dist/Chorda/Chorda.component
+          ditto --norsrc "$out/VST3/Chorda.vst3"    dist/Chorda/Chorda.vst3
+          ditto --norsrc "$out/Standalone/Chorda.app" dist/Chorda/Chorda.app
+          ditto -c -k --norsrc --keepParent dist/Chorda dist/Chorda-macOS.zip
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
@@ -81,10 +106,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Chorda-${{ matrix.name }}
-          path: dist/Chorda-${{ matrix.name }}.zip
+          path: |
+            dist/Chorda-${{ matrix.name }}.zip
+            dist/Chorda-${{ matrix.name }}.pkg
           if-no-files-found: error
 
-  # A version tag (v1.0.0, ...) publishes the three zips as a GitHub release.
+  # A version tag (v1.0.1, ...) publishes the zips and the macOS installer as a release.
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
@@ -100,4 +127,4 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.zip --repo "$GITHUB_REPOSITORY" --title "Chorda $GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.pkg --repo "$GITHUB_REPOSITORY" --title "Chorda $GITHUB_REF_NAME" --generate-notes
