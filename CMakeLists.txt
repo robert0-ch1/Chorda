@@ -19,7 +19,7 @@ if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
 endif()
 
 project(Chorda
-    VERSION 1.0.1
+    VERSION 1.0.0
     DESCRIPTION "Karplus-Strong string synthesiser"
     LANGUAGES C CXX)
 

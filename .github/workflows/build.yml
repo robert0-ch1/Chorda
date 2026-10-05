@@ -62,7 +62,7 @@ jobs:
           done
 
       # An installer that lets people pick the AU, the VST3 and the app, each
-      # going to its system folder, plus the same bundles zipped.
+      # going to its system folder.
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -84,12 +84,6 @@ jobs:
           package app  Standalone/Chorda.app  Applications
           productbuild --distribution packaging/macos/distribution.xml \
                        --package-path dist/pkgs --version "$version" dist/Chorda-macOS.pkg
-
-          mkdir -p dist/Chorda
-          ditto --norsrc "$out/AU/Chorda.component" dist/Chorda/Chorda.component
-          ditto --norsrc "$out/VST3/Chorda.vst3"    dist/Chorda/Chorda.vst3
-          ditto --norsrc "$out/Standalone/Chorda.app" dist/Chorda/Chorda.app
-          ditto -c -k --norsrc --keepParent dist/Chorda dist/Chorda-macOS.zip
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
@@ -117,7 +111,8 @@ jobs:
             dist/Chorda-${{ matrix.name }}.pkg
           if-no-files-found: error
 
-  # A version tag (v1.0.1, ...) publishes the zips and the macOS installer as a release.
+  # A version tag (v1.0.0, ...) publishes the macOS installer and the Windows
+  # and Linux zips as a release.
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')

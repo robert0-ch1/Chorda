@@ -30,20 +30,6 @@ standalone app is `./Chorda`.
 
 Then rescan plugins in your DAW.
 
-<details>
-<summary>Installing by hand on macOS</summary>
-
-`Chorda-macOS.zip` has the same files. Copy `Chorda.component` to
-`~/Library/Audio/Plug-Ins/Components`, `Chorda.vst3` to
-`~/Library/Audio/Plug-Ins/VST3` and `Chorda.app` to Applications, then run
-this once in Terminal so macOS lets them load:
-
-```bash
-xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Chorda.component ~/Library/Audio/Plug-Ins/VST3/Chorda.vst3 /Applications/Chorda.app
-```
-
-</details>
-
 ## Controls
 
 | Control | What it does |
