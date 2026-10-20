@@ -128,6 +128,7 @@ private:
         for (int i = 0; i < choice->choices.size(); ++i)
             menu.addItem (i + 1, choice->choices[i], true, i == choice->getIndex());
 
+        menu.setLookAndFeel (&getLookAndFeel());
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
                             [safe = juce::Component::SafePointer<ParameterBox> (this)] (int result)
                             {
