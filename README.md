@@ -47,10 +47,6 @@ Then rescan plugins in your DAW.
 | Voices, Glide, Octave | Mono, Legato or up to 64 voices; pitch glide; ±2 octaves. |
 | Width, Drive, Reverb, Gain | Stereo ensemble; 2x oversampled valve drive; reverb send. |
 
-## System Diagram
-
-![Signal flow of one voice](docs/signal-flow.svg)
-
 ## Build it yourself
 
 You need CMake 3.22+ and a C++17 compiler; JUCE is downloaded for you.
