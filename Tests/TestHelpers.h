@@ -118,7 +118,7 @@ inline void makeDryTestPatch (ChordaAudioProcessor& processor)
     setParameter (processor, outputGain,      0.0f);
     setParameter (processor, outputReverb,    0.0f);
     setParameter (processor, lfoAmount,       0.0f);
-    setParameter (processor, stringDecay,     20.0f);   // string stays loud for the whole test
+    setParameter (processor, stringDecay,     10.0f);   // string stays loud for the whole test
     setParameter (processor, stringSustain,   0.0f);
     setParameter (processor, stringRelease,   0.1f);
 }

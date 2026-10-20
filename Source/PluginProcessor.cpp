@@ -254,7 +254,7 @@ void ChordaAudioProcessor::updateVoiceParameters()
 {
     VoiceParameters vp;
     vp.exciterTone    = raw.exciterTone->load();
-    vp.attackSeconds  = raw.exciterAttack->load() * 0.001f;
+    vp.attackSeconds  = (raw.exciterAttack->load() + pluck::detail::attackFloorMs) * 0.001f;
     vp.pickPosition   = raw.exciterPosition->load();
     vp.decaySeconds   = raw.stringDecay->load();
     vp.sustainLevel   = raw.stringSustain->load();

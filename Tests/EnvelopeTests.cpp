@@ -98,7 +98,7 @@ void testHoldAndStability (TestReport& report, const juce::File& outDir)
             setParameter (processor, stringBrightness, brightness);
             setParameter (processor, stringDamper, damperPos);
             setParameter (processor, stringSustain, 1.0f);
-            setParameter (processor, stringDecay, 20.0f);
+            setParameter (processor, stringDecay, 10.0f);
 
             const auto audio = render (processor,
                                        { { 0,             juce::MidiMessage::noteOn  (1, note, 1.0f) },

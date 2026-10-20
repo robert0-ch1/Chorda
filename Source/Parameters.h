@@ -143,6 +143,17 @@ namespace detail
                  [] (float start, float end, float v) { return std::log (v / start) / std::log (end / start); } };
     }
 
+    /** Shown attack 0 ms plays this long: shorter plucks sound thin. */
+    inline constexpr float attackFloorMs = 6.0f;
+
+    /** 0 to max, with the same feel as a log range starting at offset. */
+    inline juce::NormalisableRange<float> offsetLogRange (float max, float offset)
+    {
+        return { 0.0f, max,
+                 [offset] (float, float end, float t) { return offset * std::pow ((end + offset) / offset, t) - offset; },
+                 [offset] (float, float end, float v) { return std::log ((v + offset) / offset) / std::log ((end + offset) / offset); } };
+    }
+
     inline juce::String hzToText (float hz, int)
     {
         return hz >= 1000.0f ? juce::String (hz / 1000.0f, 2) + " kHz"
@@ -219,11 +230,11 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
 
     auto exciter = std::make_unique<Group> ("exciter", "Exciter", "|",
         makeFloat (ParamID::exciterTone,     "Exciter",          { 0.0f, 1.0f, 0.001f },   toneNoise, toneToText),
-        makeFloat (ParamID::exciterAttack,   "Attack",        logRange (0.5f, 2000.0f), 3.0f, msToText),
+        makeFloat (ParamID::exciterAttack,   "Attack",        offsetLogRange (2000.0f, attackFloorMs), 0.0f, msToText),
         makeFloat (ParamID::exciterPosition, "Pick Position", { pickPositionMinimum, positionMaximum, 0.001f }, 0.2f, positionToText));
 
     auto string = std::make_unique<Group> ("string", "String", "|",
-        makeFloat (ParamID::stringDecay,      "Decay",           logRange (0.05f, 20.0f),     2.0f,    secondsToText),
+        makeFloat (ParamID::stringDecay,      "Decay",           logRange (0.05f, 10.0f),     2.0f,    secondsToText),
         makeFloat (ParamID::stringSustain,    "Sustain",         { 0.0f, 1.0f, 0.001f },      0.0f,    percentToText),
         makeFloat (ParamID::stringRelease,    "Release",         logRange (0.01f, 10.0f),     0.3f,    secondsToText),
         makeFloat (ParamID::stringBrightness, "Brightness",      logRange (200.0f, 20000.0f), 5000.0f, hzToText),

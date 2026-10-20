@@ -171,7 +171,7 @@ int fuzzLive (int count)
     {
         ChordaAudioProcessor p;
         setParameter (p, stringSustain, rng.nextBool() ? 1.0f : rng.nextFloat());
-        setParameter (p, stringDecay, 20.0f * rng.nextFloat());
+        setParameter (p, stringDecay, 10.0f * rng.nextFloat());
         p.setPlayConfigDetails (0, 2, sampleRate, blockSize);
         p.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> block (2, blockSize);

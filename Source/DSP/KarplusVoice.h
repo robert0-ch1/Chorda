@@ -42,7 +42,7 @@ namespace pluck
 struct VoiceParameters
 {
     float exciterTone       = toneNoise; ///< 0..1: sine -> square -> noise burst
-    float attackSeconds     = 0.003f;    ///< length of the excitation
+    float attackSeconds     = 0.006f;    ///< length of the excitation
     float pickPosition      = 0.2f;      ///< fraction of the string length, never zero
     float decaySeconds      = 2.0f;      ///< T60 while held
     float sustainLevel      = 0.0f;      ///< 0..1, see sustainRangeDb in Parameters.h

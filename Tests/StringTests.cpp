@@ -489,7 +489,8 @@ void testPickWhileRinging (TestReport& report)
     report.check (difference < 1.0e-6f, "a damper with no pressure is no damper", "largest difference " + juce::String (difference, 8));
 }
 
-/** Every note is heard within 1 ms of note-on, independent of its delay-line length. */
+/** Every note is heard within 2 ms of note-on, independent of its delay-line length
+    (the 6 ms minimum attack rises over the first 1 to 2 ms; a period of latency would be 4 to 60 ms). */
 void testNoLatency (TestReport& report)
 {
     using namespace pluck::ParamID;
@@ -507,7 +508,7 @@ void testNoLatency (TestReport& report)
             if (std::abs (audio.getSample (0, i)) > peak * 0.01f) { first = i; break; }
         worst = juce::jmax (worst, (float) (first * 1000.0 / sampleRate));
     }
-    report.check (worst < 1.0f, "every note from C0 to C5 is heard within 1 ms of its note-on",
+    report.check (worst < 2.0f, "every note from C0 to C5 is heard within 2 ms of its note-on",
                   "slowest " + juce::String (worst, 2) + " ms");
 }
 
