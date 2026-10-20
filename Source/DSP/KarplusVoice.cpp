@@ -366,7 +366,7 @@ float KarplusVoice::renderSample() noexcept
     {
         // Sub level from a running mean square; the per-period RMS would modulate it.
         subMeanSquare += (filtered * filtered - subMeanSquare) * subLevelCoeff;
-        output += std::sin (twoPi * subPhase) * std::sqrt (subMeanSquare) * subGain * params.subLevel;
+        output += std::sin (twoPi * subPhase) * std::sqrt (subMeanSquare) * subGain * params.subLevel * subAudibility;
 
         subPhase += subPhaseStep;
         if (subPhase >= 1.0f)

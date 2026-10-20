@@ -56,14 +56,17 @@ void KarplusVoice::updateDamperFilter() noexcept
         damperDelay = damperDelayTarget;
 
     // Pickup at the pick position.
-    listenDelayTarget = juce::jlimit (1.0f, (float) listenHistory.size() * 0.2f,
-                                      juce::jlimit (pickPositionMinimum, positionMaximum, params.pickPosition) * periodSamples);
+    listenPickTarget  = juce::jlimit (pickPositionMinimum, positionMaximum, params.pickPosition);
+    listenDelayTarget = juce::jlimit (1.0f, (float) listenHistory.size() * 0.2f, listenPickTarget * periodSamples);
 }
 
 void KarplusVoice::glideDamper (bool snap) noexcept
 {
     if (snap)
+    {
         listenDelay = listenDelayTarget;
+        listenPick = listenPickEase = listenPickTarget;
+    }
 
     if (juce::exactlyEqual (damperDelay, damperDelayTarget) && juce::exactlyEqual (damperMix, damperMixTarget))
         return;
@@ -73,6 +76,7 @@ void KarplusVoice::glideDamper (bool snap) noexcept
         damperDelay = damperDelayTarget;
         damperMix   = damperMixTarget;
         listenDelay = listenDelayTarget;
+        listenPick = listenPickEase = listenPickTarget;
     }
     else
     {
@@ -130,7 +134,13 @@ float KarplusVoice::applyDamper (float input) noexcept
     if (++listenWriteIndex >= (int) listenHistory.size())
         listenWriteIndex = 0;
 
-    listenDelay += (listenDelayTarget - listenDelay) * damperGlideCoeff;
+    // The pick position glides in two stages, so a move starts with no kink;
+    // the delay follows the period with the loop's own short glide, so it
+    // tracks pitch glides without lagging or stepping.
+    listenPickEase += (listenPickTarget - listenPickEase) * damperGlideCoeff;
+    listenPick     += (listenPickEase - listenPick) * damperGlideCoeff;
+    const auto delayNow = juce::jlimit (1.0f, (float) listenHistory.size() * 0.2f, listenPick * periodSamples);
+    listenDelay += (delayNow - listenDelay) * loopDelayGlideCoeff;
     const auto heard = 0.5f * (input - readHistory (listenHistory, listenWriteIndex, listenDelay));
 
     // History always runs so the damper has valid input when it switches on.

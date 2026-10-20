@@ -253,7 +253,7 @@ void testToneCrossfade (TestReport& report, const juce::File& outDir)
 void testLowNotesLoseTheirTop (TestReport& report, const juce::File& outDir)
 {
     using namespace pluck::ParamID;
-    report.section ("1q. Low notes lose their top end as fast as middle ones");
+    report.section ("1q. Low notes do not keep a buzzy top end");
 
     auto highShareDb = [] (const juce::AudioBuffer<float>& a, int start)
     {
@@ -273,22 +273,30 @@ void testLowNotesLoseTheirTop (TestReport& report, const juce::File& outDir)
         return 10.0 * std::log10 (high / total + 1.0e-15);
     };
 
-    // Fall rate of the energy share above 2 kHz in dB/s, from 0.05 s to 0.45 s. Square pluck: deterministic.
-    auto fallRate = [&] (int note)
+    // Energy share above 2 kHz at 0.05 s and 0.45 s. Square pluck: deterministic.
+    struct Top { double early, late; };
+    auto topEnd = [&] (int note)
     {
         ChordaAudioProcessor processor;
         setParameter (processor, exciterTone, pluck::toneSquare);
         const auto audio = render (processor, { { 0, juce::MidiMessage::noteOn (1, note, 1.0f) } }, seconds (1.6));
         writeWav (outDir, "01q_note_" + juce::String (note), audio);
-        return (highShareDb (audio, seconds (0.45)) - highShareDb (audio, seconds (0.05))) / 0.4;
+        return Top { highShareDb (audio, seconds (0.05)), highShareDb (audio, seconds (0.45)) };
     };
 
-    const auto middle = fallRate (48);   // C3, the reference
+    // A low note passes if its top end falls at least 60 % as fast as C3's,
+    // or if what is left of it is no more than C3 has left, or below -90 dB
+    // (the pluck shaper keeps low notes from having much top end at all).
+    const auto middle = topEnd (48);   // C3, the reference
+    const auto middleRate = (middle.late - middle.early) / 0.4;
     for (const int note : { 16, 28, 40 })
     {
-        const auto low = fallRate (note);
-        report.check (low < middle * 0.6, "note " + juce::String (note) + " loses its top end at least 60 % as fast as C3",
-                      juce::String (juce::roundToInt (low)) + " dB/s against " + juce::String (juce::roundToInt (middle)) + " dB/s");
+        const auto low = topEnd (note);
+        const auto rate = (low.late - low.early) / 0.4;
+        report.check (rate < middleRate * 0.6 || low.late <= juce::jmax (middle.late, -90.0),
+                      "note " + juce::String (note) + " keeps no more top end than C3",
+                      juce::String (juce::roundToInt (low.late)) + " dB left above 2 kHz against "
+                          + juce::String (juce::roundToInt (middle.late)) + " dB, falling " + juce::String (juce::roundToInt (rate)) + " dB/s");
     }
 }
 

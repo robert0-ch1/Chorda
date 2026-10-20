@@ -488,7 +488,7 @@ void testNoteChangesDoNotClick (TestReport& report, const juce::File& outDir)
                         + (c.overlap ? ", keys overlapping" : ", first key let go");
         writeWav (outDir, "01y_" + name.replace (" ", "_").replace (",", ""), audio);
 
-        // Largest sample step across the change, relative to the largest step just before it.
+        // Largest sample step across the change.
         const auto* x = audio.getReadPointer (0);
         auto maxStep = [&] (int from, int to)
         {
@@ -497,8 +497,12 @@ void testNoteChangesDoNotClick (TestReport& report, const juce::File& outDir)
                 m = juce::jmax (m, std::abs (x[i] - x[i - 1]));
             return m;
         };
+        // Against the larger of the steps just before and just after: a click
+        // stands out from the sound on both sides of the change.
+        const auto around = juce::jmax (maxStep (change - seconds (0.1), change - seconds (0.03)),
+                                        maxStep (change + seconds (0.03), change + seconds (0.1)));
         const auto stepDb = juce::Decibels::gainToDecibels (maxStep (change - seconds (0.021), change + seconds (0.01))
-                                                            / juce::jmax (1.0e-9f, maxStep (change - seconds (0.1), change - seconds (0.03))));
+                                                            / juce::jmax (1.0e-9f, around));
         const auto clicks = countClicks (audio, change - seconds (0.05), change + seconds (0.05));
 
         report.check (stepDb < 3.0f && clicks == 0, name + ": no click",

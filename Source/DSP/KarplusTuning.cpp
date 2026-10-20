@@ -196,6 +196,11 @@ void KarplusVoice::updateTuning() noexcept
     // Sub follows the actual loop period, not the nominal one.
     subPhaseStep = 0.5f / juce::jmax (2.0f, actualPeriodSamples());
 
+    // The sub fades out between 40 and 20 Hz: below that it is rumble, not pitch.
+    const auto subHz = subPhaseStep * (float) getSampleRate();
+    const auto t = juce::jlimit (0.0f, 1.0f, (subHz - subFadeLowHz) / (subFadeHighHz - subFadeLowHz));
+    subAudibility = t * t * (3.0f - 2.0f * t);
+
     // Exciter drive is per period, so rescale it if the pitch moves during the attack.
     if (! exciterFinished && attackSamplesLeft > 0)
         updateExcitationDrive();

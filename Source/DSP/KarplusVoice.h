@@ -132,6 +132,9 @@ private:
     /** Exciter band-limiting filter and its noise make-up gain. */
     void  prepareExciterFilter() noexcept;
 
+    /** The pluck shaper for low notes, set once per pluck. */
+    void  preparePluckShape() noexcept;
+
 public:
     /** Impulse-response energy of `stages` identical one-pole low-passes with coefficient a. */
     static double cascadeEnergy (int stages, double a) noexcept;
@@ -207,6 +210,13 @@ private:
     // Drive per waveform class: tonal input sums coherently over the attack,
     // noise sums in power, and the band-limit attenuates each differently.
     float exciterTonalDrive  = 1.0f;
+    float exciterSineBoost   = 1.0f;   ///< short-attack make-up, see updateExcitationDrive()
+    float pluckShapeCoeff    = 0.0f;   ///< one-pole coefficient of the pluck shaper (2 stages)
+    float pluckShapeGain     = 1.0f;   ///< loudness make-up of the shaper, for noise
+    float pluckShapeTonalGain  = 1.0f; ///< for the sine
+    float pluckShapeSquareGain = 1.0f; ///< for the square
+    std::array<float, 2> pluckShapeState {};
+    float exciterSquareBoost = 1.0f;
     float exciterNoiseDrive  = 1.0f;
 
     int   exciterStages       = 1;      ///< exciter low-pass stages, matches loopStages
@@ -270,6 +280,7 @@ private:
     std::vector<float> listenHistory;   ///< string output history
     int   listenWriteIndex    = 0;
     float listenDelay         = 1.0f, listenDelayTarget = 1.0f;   ///< pick position x period, in samples
+    float listenPick          = 0.2f, listenPickEase = 0.2f, listenPickTarget = 0.2f;   ///< pick position, smoothed in two stages
     int   damperWriteIndex    = 0;
 
     // Damper make-up: input and output mean squares and the gain matching them.
@@ -298,6 +309,7 @@ private:
     // Sub oscillator: sine at f0 / 2 scaled by string level
     float subPhase        = 0.0f;
     float subPhaseStep     = 0.0f;  ///< from the actual loop period, so it does not drift
+    float subAudibility    = 1.0f;  ///< 0..1, fades the sub out below 40 Hz
     float subMeanSquare    = 0.0f;  ///< running mean square of the string
 
     // Output conditioning

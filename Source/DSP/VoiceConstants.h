@@ -120,4 +120,19 @@ namespace pluck::voice
 
     constexpr float twoPi = juce::MathConstants<float>::twoPi;
 
+    /** Highest burst peak the short-attack level make-up may reach. */
+    constexpr float maxShortBurstPeak = 2.0f;
+
+    /** The sub fades out between these frequencies, high to low. */
+    constexpr float subFadeHighHz = 40.0f;
+    constexpr float subFadeLowHz  = 20.0f;
+
+    /** The pluck shaper's cutoff never goes below this, so low notes keep their body. */
+    constexpr float pluckShapeMinimumHz = 110.0f;
+
+    /** The pluck shaper is full below this pitch (C2) and fades out over this many octaves. */
+    constexpr float pluckShapeFullBelowHz = 65.41f;
+    constexpr float pluckShapeFadeOctaves = 2.0f;
+    constexpr float pluckShapeMaxGain     = 4.0f;   ///< +12 dB at most
+
 } // namespace pluck::voice

@@ -266,6 +266,14 @@ inline int countClicks (const juce::AudioBuffer<float>& audio, int from, int to,
     for (int i = 3; i < audio.getNumSamples(); ++i)
         d3[(size_t) i] = std::abs (x[i] - 3.0f * x[i - 1] + 3.0f * x[i - 2] - x[i - 3]);
 
+    // A click must stand out against its surroundings (ratio) and be no more
+    // than 60 dB below the signal itself: on a very smooth note the
+    // surroundings are near zero, and ripples far below hearing would count.
+    double power = 0.0;
+    for (int i = juce::jmax (0, from); i < juce::jmin (to, audio.getNumSamples()); ++i)
+        power += (double) x[i] * x[i];
+    const auto floor = juce::jmax (1.0e-5f, 1.0e-3f * (float) std::sqrt (power / juce::jmax (1, to - from)));
+
     const int w = seconds (0.02);
     int clicks = 0;
     for (int i = juce::jmax (from, w); i + w < juce::jmin (to, audio.getNumSamples()); i += 16)
@@ -279,7 +287,7 @@ inline int countClicks (const juce::AudioBuffer<float>& audio, int from, int to,
         for (int k = i; k < i + 16; ++k)
             peak = juce::jmax (peak, d3[(size_t) k]);
 
-        if (peak > mean * ratio && peak > 1.0e-5f)
+        if (peak > mean * ratio && peak > floor)
         {
             ++clicks;
             i += seconds (0.005);
