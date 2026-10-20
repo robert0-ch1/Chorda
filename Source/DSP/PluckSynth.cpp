@@ -67,8 +67,9 @@ void PluckSynth::setLegato (bool shouldBeLegato) noexcept
     if (legato == shouldBeLegato)
         return;
 
+    // Carry the keys already down over, so their note-offs still release.
     legato = shouldBeLegato;
-    heldNotes.clearQuick();
+    heldNotes = keysDown;
     legatoStartedNote = -1;
 }
 
@@ -86,6 +87,9 @@ void PluckSynth::noteOn (int midiChannel, int midiNoteNumber, float velocity)
 {
     const auto from = previousNoteHz;
     previousNoteHz  = (float) juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
+
+    keysDown.removeAllInstancesOf (midiNoteNumber);
+    keysDown.add (midiNoteNumber);
 
     if (legato)
     {
@@ -114,9 +118,28 @@ void PluckSynth::noteOn (int midiChannel, int midiNoteNumber, float velocity)
 
 void PluckSynth::noteOff (int midiChannel, int midiNoteNumber, float velocity, bool allowTailOff)
 {
+    keysDown.removeAllInstancesOf (midiNoteNumber);
+
+    // Whatever the mode history, nothing keeps sounding once every key is up.
+    if (keysDown.isEmpty())
+    {
+        juce::Synthesiser::noteOff (midiChannel, midiNoteNumber, velocity, allowTailOff);
+        heldNotes.clearQuick();
+        legatoStartedNote = -1;
+        releaseHeldVoices (allowTailOff);
+        return;
+    }
+
     if (! legato)
     {
         juce::Synthesiser::noteOff (midiChannel, midiNoteNumber, velocity, allowTailOff);
+
+        // A voice legato slid to this key is still filed under its first note.
+        for (auto* v : voices)
+            if (auto* voice = dynamic_cast<KarplusVoice*> (v))
+                if (voice->isVoiceActive() && ! voice->isReleasing() && voice->getSoundingNote() == midiNoteNumber
+                    && ! keysDown.contains (voice->getCurrentlyPlayingNote()))
+                    voice->stopNote (velocity, allowTailOff);
         return;
     }
 
@@ -139,9 +162,18 @@ void PluckSynth::noteOff (int midiChannel, int midiNoteNumber, float velocity, b
     }
 }
 
+void PluckSynth::releaseHeldVoices (bool allowTailOff)
+{
+    for (auto* v : voices)
+        if (auto* voice = dynamic_cast<KarplusVoice*> (v))
+            if (voice->isVoiceActive() && ! voice->isReleasing() && ! voice->isSustainPedalDown())
+                voice->stopNote (0.0f, allowTailOff);
+}
+
 void PluckSynth::allNotesOff (int midiChannel, bool allowTailOff)
 {
     heldNotes.clearQuick();
+    keysDown.clearQuick();
     legatoStartedNote = -1;
     juce::Synthesiser::allNotesOff (midiChannel, allowTailOff);
 }

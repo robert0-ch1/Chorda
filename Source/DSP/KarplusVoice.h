@@ -75,6 +75,9 @@ public:
     /** True after note-off while the string decays at the release rate. */
     bool isReleasing() const noexcept   { return stage == Stage::releasing; }
 
+    /** The key the string is tuned to now: the started note, or the one legato slid it to. */
+    int getSoundingNote() const noexcept   { return soundingNote; }
+
     //==============================================================================
     bool canPlaySound (juce::SynthesiserSound* sound) override;
     void startNote (int midiNoteNumber, float velocity,

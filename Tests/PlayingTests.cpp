@@ -506,4 +506,66 @@ void testNoteChangesDoNotClick (TestReport& report, const juce::File& outDir)
     }
 }
 
+/** Random playing with knob, voice-mode and preset changes: once every key
+    is up, nothing may keep sounding. Switching modes while keys were held
+    used to leave notes ringing for ever. */
+void testNothingStaysStuck (TestReport& report)
+{
+    using namespace pluck::ParamID;
+    report.section ("1za. Nothing keeps sounding after the keys are up");
+
+    const char* ids[] = { exciterTone, exciterAttack, exciterPosition, stringDecay, stringSustain, stringRelease,
+                          stringBrightness, stringDamper, stringDamperPressure, stringSub, pitchOctave, pitchGlide,
+                          lfoAmount, lfoPressureAmount, outputDrive, outputWidth, outputReverb, voiceMode };
+    int stuck = 0;
+    float loudest = 0.0f;
+    for (int run = 0; run < 12; ++run)
+    {
+        juce::Random rng (1000 + run);
+        ChordaAudioProcessor processor;
+        processor.setPlayConfigDetails (0, 2, sampleRate, blockSize);
+        processor.prepareToPlay (sampleRate, blockSize);
+        juce::AudioBuffer<float> block (2, blockSize);
+        std::vector<int> held;
+        const int playing = seconds (5.0), total = seconds (20.0);
+        float tail = 0.0f;
+        for (int position = 0; position < total; position += blockSize)
+        {
+            juce::MidiBuffer midi;
+            if (position < playing)
+            {
+                if (rng.nextInt (6) == 0)
+                {
+                    const int note = 24 + rng.nextInt (80);
+                    midi.addEvent (juce::MidiMessage::noteOn (1, note, 0.2f + 0.8f * rng.nextFloat()), 0);
+                    held.push_back (note);
+                }
+                if (! held.empty() && rng.nextInt (8) == 0)
+                {
+                    const auto i = (size_t) rng.nextInt ((int) held.size());
+                    midi.addEvent (juce::MidiMessage::noteOff (1, held[i]), 0);
+                    held.erase (held.begin() + (long) i);
+                }
+                if (rng.nextInt (6) == 0)
+                    processor.getAPVTS().getParameter (ids[rng.nextInt (18)])->setValueNotifyingHost (rng.nextFloat());
+                if (rng.nextInt (40) == 0)
+                    processor.getPresetManager().loadPresetAtIndex (rng.nextInt (16));
+            }
+            else if (position < playing + blockSize)
+                for (auto note : held)
+                    midi.addEvent (juce::MidiMessage::noteOff (1, note), 0);
+
+            block.clear();
+            processor.processBlock (block, midi);
+            if (position > total - seconds (2.0))
+                tail = juce::jmax (tail, block.getMagnitude (0, 0, blockSize));
+        }
+        loudest = juce::jmax (loudest, tail);
+        if (tail > 1.0e-3f)   // -60 dBFS: still clearly audible 13 s after the last key
+            ++stuck;
+    }
+    report.check (stuck == 0, "random playing with mode and preset changes never leaves a note ringing",
+                  juce::String (stuck) + " of 12 runs, loudest tail " + juce::String (juce::Decibels::gainToDecibels (loudest), 1) + " dB");
+}
+
 } // namespace chorda_test

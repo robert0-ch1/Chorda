@@ -72,6 +72,7 @@ int main (int argc, char* argv[])
     testHeldNotesDoNotClick (report, outDir);
     testNoteChangesDoNotClick (report, outDir);
     testCascadeEnergy (report);
+    testNothingStaysStuck (report);
     testDamperDragIsSmooth (report, outDir);
     testTheWholeString (report, outDir);
     testGlideLevel (report);

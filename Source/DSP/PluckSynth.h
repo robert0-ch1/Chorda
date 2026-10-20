@@ -46,11 +46,15 @@ private:
     /** Active, non-releasing voice used by legato, or nullptr. */
     KarplusVoice* legatoVoice() const noexcept;
 
+    /** Releases every voice still held, e.g. once no key is down. */
+    void releaseHeldVoices (bool allowTailOff);
+
     int  maxPolyphony = 16;
     bool legato       = false;
     bool glideEnabled = false;
 
-    juce::Array<int> heldNotes;     ///< held keys, oldest first
+    juce::Array<int> heldNotes;     ///< held keys, oldest first (legato)
+    juce::Array<int> keysDown;      ///< held keys in every mode, oldest first
     int   legatoStartedNote = -1;   ///< note the base class assigned to the voice
     float previousNoteHz    = 0.0f; ///< glide start for the next note
 

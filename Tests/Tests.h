@@ -45,6 +45,7 @@ void testGlideLevel (TestReport& report);
 juce::AudioBuffer<float> renderWatchingLfo (ChordaAudioProcessor& processor, std::vector<MidiEvent> events, int totalSamples, std::vector<float>& lfo);
 void testLfo (TestReport& report, const juce::File& outDir);
 void testNoteChangesDoNotClick (TestReport& report, const juce::File& outDir);
+void testNothingStaysStuck (TestReport& report);
 void testFactoryPresets (TestReport& report, const juce::File& outDir);
 void testStateRoundTrip (TestReport& report);
 void testSampleRateChange (TestReport& report);
